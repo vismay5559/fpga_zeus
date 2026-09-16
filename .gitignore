@@ -1,0 +1,8 @@
+build/
+sim/sim_build/
+sim/results.xml
+sim/__pycache__/
+*.jou
+*.log
+*.str
+.Xil/
