@@ -1,5 +1,7 @@
 SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
+# ROS (sourced in ~/.bashrc) exposes pytest plugins that break cocotb; skip them
+export PYTEST_DISABLE_PLUGIN_AUTOLOAD := 1
 
 VERILOG_SOURCES += $(PWD)/../rtl/tick_gen.v
 COCOTB_TOPLEVEL = tick_gen
