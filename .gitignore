@@ -6,3 +6,7 @@ sim/__pycache__/
 *.log
 *.str
 .Xil/
+
+# Exported chat logs: they contain the machine's MAC / Vivado license host ID
+Claude-*.md
+*.fst

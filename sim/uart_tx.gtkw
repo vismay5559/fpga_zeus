@@ -1,0 +1,15 @@
+[dumpfile] "sim_build/uart_tx/uart_tx.fst"
+[timestart] 0
+@28
+uart_tx.clk
+uart_tx.rst
+uart_tx.valid
+uart_tx.ready
+uart_tx.busy
+@24
+uart_tx.data[7:0]
+uart_tx.bit_idx[3:0]
+uart_tx.clk_cnt[3:0]
+uart_tx.shreg[9:0]
+@28
+uart_tx.tx
