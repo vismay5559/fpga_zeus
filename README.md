@@ -37,7 +37,7 @@ scripts/      Vivado build and programming scripts (Tcl, no GUI needed)
 | [`tick_gen`](rtl/tick_gen.v) | done | one-cycle pulse every N clocks; baud and cycle timing |
 | [`uart_tx`](rtl/uart_tx.v) | done | 8N1 transmitter, LSB first, valid/ready handshake |
 | [`top`](rtl/top.v) | done | board bring-up blinky: LD4 at 1 Hz, BTN0 resets |
-| `uart_rx` | next | receiver: input synchronizer, mid-bit sampling, framing errors |
+| [`uart_rx`](rtl/uart_rx.v) | done | receiver: 2-flop synchronizer, mid-bit sampling, glitch rejection, framing errors |
 
 ## Working on it
 

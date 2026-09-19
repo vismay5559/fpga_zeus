@@ -20,6 +20,9 @@ endif
 ifeq ($(TOP),uart_tx)
 COMPILE_ARGS += -Puart_tx.CLKS_PER_BIT=16
 endif
+ifeq ($(TOP),uart_rx)
+COMPILE_ARGS += -Puart_rx.CLKS_PER_BIT=16
+endif
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
