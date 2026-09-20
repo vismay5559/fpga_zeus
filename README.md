@@ -19,7 +19,8 @@ it on the same 1 kHz strobe, and hands the Pi one timestamped snapshot per cycle
 | SPI slave | Raspberry Pi | state snapshot out, motor commands in, plus a data-ready line |
 
 Sensor fusion (InEKF) stays off the FPGA for now. See [ROADMAP.md](ROADMAP.md) for the
-schedule and current status.
+schedule and current status, and [CONTEXT.md](CONTEXT.md) for the full background:
+decisions already made, working conventions, and environment quirks.
 
 ## Layout
 
