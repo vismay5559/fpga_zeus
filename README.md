@@ -39,9 +39,10 @@ scripts/      Vivado build and programming scripts (Tcl, no GUI needed)
 | [`uart_tx`](rtl/uart_tx.v) | done | 8N1 transmitter, LSB first, valid/ready handshake |
 | [`top`](rtl/top.v) | done | board bring-up blinky: LD4 at 1 Hz, BTN0 resets |
 | [`uart_rx`](rtl/uart_rx.v) | done | receiver: 2-flop synchronizer, mid-bit sampling, glitch rejection, framing errors |
+| [`fifo_sync`](rtl/fifo_sync.v) | done | parameterized synchronous byte queue with overflow/underflow diagnostics |
+| [`uart_rx_fifo`](rtl/uart_rx_fifo.v) | done | connects UART RX bytes to FIFO; tested with independent 3 Mbaud input |
 
-Next exercise: [FIFO walkthrough](sim/FIFO_EXERCISE.md). The FIFO testbench is
-verified; [its RTL](rtl/fifo_sync.v) is a numbered TODO skeleton for you to fill in.
+The [FIFO walkthrough](sim/FIFO_EXERCISE.md) explains its tests and RTL from basics.
 IMU requirements and STM32 comparison: [BNO085 plan](BNO085_PLAN.md).
 
 ## Working on it

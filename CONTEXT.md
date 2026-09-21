@@ -5,9 +5,13 @@ Written 2026-09-20. Companion files: [README.md](README.md) (what/how), [ROADMAP
 
 Update 2026-09-22: [BNO085_PLAN.md](BNO085_PLAN.md) records verified SH-2
 formats, pinned STM32 configuration, rate caveats and future recovery/freshness
-tests. FIFO testbench and six-TODO skeleton are ready; the user implements RTL.
-See [sim/FIFO_EXERCISE.md](sim/FIFO_EXERCISE.md) for instructions and verification.
-New UART tests pass at 100 MHz/divider 33 against independent 3 Mbaud input.
+tests. FIFO RTL is complete with its six TODO explanations retained; see
+[sim/FIFO_EXERCISE.md](sim/FIFO_EXERCISE.md). `uart_rx_fifo` connects RX to the
+queue. Its 5/5 tests drive real serial bits and cover order, stalls, overflow,
+framing-error recovery and reset. Integration exposed and fixed a UART recovery
+bug: RX must observe idle high before it can arm for another start, so a bad low
+stop bit cannot become a phantom frame. New UART tests pass at 100 MHz/divider 33
+against independent 3 Mbaud input.
 FPGA startup requests accel/gyro 400 Hz and Rotation Vector 100 Hz, matching the
 inspected STM32 source, with 120 us TX byte spacing; physical rates need measurement.
 FPGA is the sole sensor host. It stores signed integers
@@ -98,11 +102,13 @@ module passes. Commits are co-authored with Claude per the user's setup.
 | `tick_gen` | 2/2 | one-cycle pulse every DIV clocks |
 | `uart_tx` | 5/5 | 8N1, LSB first, valid/ready handshake, `CLKS_PER_BIT` timing |
 | `uart_rx` | 6/6 | 2-flop sync, half-bit then full-bit sampling, false-start rejection, `frame_error` on a bad stop bit |
+| `fifo_sync` | 8/8 | synchronous parameterized queue; complete implementation with explanatory TODOs retained |
+| `uart_rx_fifo` | 5/5 | complete 3 Mbaud serial-bit → received-byte → queued-byte integration |
 | `top` | — | blinky bring-up: LD4 at 1 Hz, BTN0 resets. `uart_*` are not wired into it yet |
 
-Next: user implements `fifo_sync` TODOs; eight tests were verified with a temporary
-reference at four parameter settings and 13 mutations. BNO085 requirements are
-in BNO085_PLAN.md. Other planned blocks: `debounce` + foot switches, then `cycle_timer`
+Next for the IMU path: SHTP-over-UART deframer consuming `uart_rx_fifo`. BNO085
+requirements are in BNO085_PLAN.md. Other planned blocks: `debounce` + foot
+switches, then `cycle_timer`
 (the 1 kHz global sample strobe), then SPI master + AS5047P readers.
 
 ### Conventions in the RTL

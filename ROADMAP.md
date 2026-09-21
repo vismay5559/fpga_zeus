@@ -8,9 +8,10 @@ Rule: every block passes cocotb tests before it goes near hardware.
 Workflow: the test file is the spec, you write the RTL, then review.
 
 ## Week 1: Sep 17–23 · UART, FIFO, foot switches
-- [ ] `uart_tx`: 5/5 tests passing
-- [ ] `uart_rx`: 2-flop sync, mid-bit sampling, framing error; loopback tests with ±2% baud error
-- [ ] `fifo_sync` RTL: user exercise; tests verified against reference and 13 mutations (see `sim/FIFO_EXERCISE.md`)
+- [x] `uart_tx`: 5/5 tests passing
+- [x] `uart_rx`: 2-flop sync, mid-bit sampling, framing error; loopback tests with ±2% baud error
+- [x] `fifo_sync`: complete RTL, 8/8 tests; tests also verified against 13 mutations
+- [x] `uart_rx_fifo`: serial RX → FIFO integration, 5/5 tests at independent 3 Mbaud
 - [x] UART RX timing: 100 MHz/divider 33 versus independent 3 Mbaud and +/-100 ppm sender, all bytes/four phases
 - [ ] `debounce` + `foot_switches`: 4 inputs → synced, debounced, change timestamp
 - [ ] `cycle_timer`: 1 kHz `sample` strobe + free-running µs timestamp counter

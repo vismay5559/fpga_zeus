@@ -20,6 +20,7 @@ module uart_rx #(
     wire         rx_s = sync[1];   // the safe, synchronized version of rx
 
     reg          busy;      // 1 while a frame is being received
+    reg          armed;     // 1 after idle-high has been seen; permits a new start
     reg [CW-1:0] clk_cnt;   // cycles elapsed inside the current bit
     reg [3:0]    bit_idx;   // 0 = start bit, 1..8 = data bits, 9 = stop bit
     reg [7:0]    shreg;     // bits collected so far
@@ -32,14 +33,20 @@ module uart_rx #(
         if (rst) begin
             sync    <= 2'b11;           // pretend the line is idle
             busy    <= 1'b0;
+            armed   <= 1'b0;
             // TODO 1: reset the counters
             clk_cnt <= {CW{1'b0}};
             bit_idx <= 4'd0;
         end else if (!busy) begin
-            // TODO 2: IDLE - the line resting high. When rx_s goes low a frame is
-            //         starting: clear the counters and go busy.
-            if (!rx_s) begin
+            // TODO 2: IDLE - first see the line high to arm the receiver. Once
+            //         armed, a low level is a NEW falling edge/start bit: clear
+            //         the counters, disarm, and go busy. Requiring high first
+            //         prevents a bad low stop bit from becoming a phantom frame.
+            if (rx_s) begin
+                armed <= 1'b1;
+            end else if (armed) begin
                 busy    <= 1'b1;
+                armed   <= 1'b0;
                 clk_cnt <= {CW{1'b0}};
                 bit_idx <= 4'd0;
             end

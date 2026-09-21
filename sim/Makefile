@@ -32,6 +32,13 @@ export UART_RX_CLKS_PER_BIT ?= 16
 COMPILE_ARGS += -Puart_rx.CLKS_PER_BIT=$(UART_RX_CLKS_PER_BIT)
 SIM_BUILD = sim_build/uart_rx_c$(UART_RX_CLKS_PER_BIT)
 endif
+ifeq ($(TOP),uart_rx_fifo)
+export UART_RX_FIFO_CLKS_PER_BIT ?= 33
+export UART_FIFO_DEPTH ?= 8
+COMPILE_ARGS += -Puart_rx_fifo.CLKS_PER_BIT=$(UART_RX_FIFO_CLKS_PER_BIT)
+COMPILE_ARGS += -Puart_rx_fifo.FIFO_DEPTH=$(UART_FIFO_DEPTH)
+SIM_BUILD = sim_build/uart_rx_fifo_c$(UART_RX_FIFO_CLKS_PER_BIT)_d$(UART_FIFO_DEPTH)
+endif
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
