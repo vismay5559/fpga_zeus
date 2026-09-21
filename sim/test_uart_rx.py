@@ -20,13 +20,14 @@ Rules:
   * Good stop bit (1) -> pulse `valid` for one cycle with the byte on `data`.
     Bad stop bit (0)  -> pulse `frame_error` for one cycle and do NOT pulse `valid`.
 """
+import os
 import random
 
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 
-CLKS_PER_BIT = 16  # must match -Puart_rx.CLKS_PER_BIT in the Makefile
+CLKS_PER_BIT = int(os.environ.get("UART_RX_CLKS_PER_BIT", "16"))
 CLK_PERIOD_NS = 10
 BIT_NS = CLKS_PER_BIT * CLK_PERIOD_NS
 

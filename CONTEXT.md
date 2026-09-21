@@ -3,6 +3,18 @@
 Everything an agent needs to continue this project without the prior conversation.
 Written 2026-09-20. Companion files: [README.md](README.md) (what/how), [ROADMAP.md](ROADMAP.md) (schedule).
 
+Update 2026-09-22: [BNO085_PLAN.md](BNO085_PLAN.md) records verified SH-2
+formats, pinned STM32 configuration, rate caveats and future recovery/freshness
+tests. FIFO testbench and six-TODO skeleton are ready; the user implements RTL.
+See [sim/FIFO_EXERCISE.md](sim/FIFO_EXERCISE.md) for instructions and verification.
+New UART tests pass at 100 MHz/divider 33 against independent 3 Mbaud input.
+FPGA startup requests accel/gyro 400 Hz and Rotation Vector 100 Hz, matching the
+inspected STM32 source, with 120 us TX byte spacing; physical rates need measurement.
+FPGA is the sole sensor host. It stores signed integers
+plus Q points (8/9/14), Pi scales; acceleration includes gravity. Rotation Vector
+is comparison-only, never an InEKF input. Pinned STM32 code converts Q values to
+floats, so account for this representation difference when comparing outputs.
+
 ## The project
 
 A bipedal robot currently has an STM32 handling every bus, streaming sensor data to a
@@ -88,7 +100,9 @@ module passes. Commits are co-authored with Claude per the user's setup.
 | `uart_rx` | 6/6 | 2-flop sync, half-bit then full-bit sampling, false-start rejection, `frame_error` on a bad stop bit |
 | `top` | — | blinky bring-up: LD4 at 1 Hz, BTN0 resets. `uart_*` are not wired into it yet |
 
-Next, per ROADMAP: `fifo_sync`, then `debounce` + foot switches, then `cycle_timer`
+Next: user implements `fifo_sync` TODOs; eight tests were verified with a temporary
+reference at four parameter settings and 13 mutations. BNO085 requirements are
+in BNO085_PLAN.md. Other planned blocks: `debounce` + foot switches, then `cycle_timer`
 (the 1 kHz global sample strobe), then SPI master + AS5047P readers.
 
 ### Conventions in the RTL

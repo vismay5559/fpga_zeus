@@ -10,7 +10,8 @@ Workflow: the test file is the spec, you write the RTL, then review.
 ## Week 1: Sep 17–23 · UART, FIFO, foot switches
 - [ ] `uart_tx`: 5/5 tests passing
 - [ ] `uart_rx`: 2-flop sync, mid-bit sampling, framing error; loopback tests with ±2% baud error
-- [ ] `fifo_sync` + tests
+- [ ] `fifo_sync` RTL: user exercise; tests verified against reference and 13 mutations (see `sim/FIFO_EXERCISE.md`)
+- [x] UART RX timing: 100 MHz/divider 33 versus independent 3 Mbaud and +/-100 ppm sender, all bytes/four phases
 - [ ] `debounce` + `foot_switches`: 4 inputs → synced, debounced, change timestamp
 - [ ] `cycle_timer`: 1 kHz `sample` strobe + free-running µs timestamp counter
 - Done when: TX→FIFO→RX loopback is clean at 32 clks/bit; switch tests cover bounce and glitches.
@@ -28,10 +29,16 @@ Workflow: the test file is the spec, you write the RTL, then review.
 - Done when: all 4 encoders update in the same cycle in sim; bad frames never show up as valid.
 
 ## Week 3: Oct 1–7 · BNO085 (UART-SHTP)
+Detailed contract and named acceptance tests: [BNO085_PLAN.md](BNO085_PLAN.md).
+FPGA startup requests acceleration/gyro at 400 Hz, Rotation Vector at 100 Hz, with a
+120 us TX byte gap. Actual acceleration and gyro must each exceed 250 Hz on hardware.
+
 - [ ] SHTP-over-UART deframer (flag/escape bytes from the BNO08x datasheet)
 - [ ] SHTP header parser (length, channel, sequence number)
 - [ ] Report parsers: accelerometer, gyro, rotation vector → Q-format registers + timestamp
 - [ ] Startup FSM + command ROM: reset, wait for advertisement, Set Feature per report
+- [ ] FPGA startup: wait for advertisement, configure the 400/400/100 profile and confirm intervals
+- [ ] Parameterized TX byte gap, buffer-status control, timestamps/freshness and error counters/tests per BNO085_PLAN
 - [ ] Replay real frames captured from the STM32 setup in cocotb
 - Done when: replayed captures decode to the same values the STM32 reports.
 

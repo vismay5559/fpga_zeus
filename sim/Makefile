@@ -13,6 +13,13 @@ COCOTB_TOPLEVEL = $(TOP)
 COCOTB_TEST_MODULES = test_$(TOP)
 SIM_BUILD = sim_build/$(TOP)
 
+ifeq ($(TOP),fifo_sync)
+export FIFO_DEPTH ?= 16
+export FIFO_WIDTH ?= 8
+COMPILE_ARGS += -Pfifo_sync.DEPTH=$(FIFO_DEPTH) -Pfifo_sync.WIDTH=$(FIFO_WIDTH)
+SIM_BUILD = sim_build/fifo_sync_d$(FIFO_DEPTH)_w$(FIFO_WIDTH)
+endif
+
 # Small parameters so simulations are fast (tests read the same values)
 ifeq ($(TOP),tick_gen)
 COMPILE_ARGS += -Ptick_gen.DIV=10
@@ -21,16 +28,20 @@ ifeq ($(TOP),uart_tx)
 COMPILE_ARGS += -Puart_tx.CLKS_PER_BIT=16
 endif
 ifeq ($(TOP),uart_rx)
-COMPILE_ARGS += -Puart_rx.CLKS_PER_BIT=16
+export UART_RX_CLKS_PER_BIT ?= 16
+COMPILE_ARGS += -Puart_rx.CLKS_PER_BIT=$(UART_RX_CLKS_PER_BIT)
+SIM_BUILD = sim_build/uart_rx_c$(UART_RX_CLKS_PER_BIT)
 endif
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 # Open the waveform in GTKWave: make TOP=uart_tx view
 # env -i strips the snap-VS-Code library paths that crash GTKWave in its terminal.
-.PHONY: view
+.PHONY: view test-uart-bno085
+test-uart-bno085:
+	$(MAKE) TOP=uart_rx UART_RX_CLKS_PER_BIT=33 COCOTB_TEST_MODULES=test_uart_rx_bno085
+
 view:
 	env -i HOME="$(HOME)" PATH=/usr/bin:/bin DISPLAY="$(DISPLAY)" \
 	    WAYLAND_DISPLAY="$(WAYLAND_DISPLAY)" XDG_RUNTIME_DIR="$(XDG_RUNTIME_DIR)" \
-	    gtkwave sim_build/$(TOP)/$(TOP).fst $(wildcard $(TOP).gtkw) &
-
+	    gtkwave $(SIM_BUILD)/$(TOP).fst $(wildcard $(TOP).gtkw) &
