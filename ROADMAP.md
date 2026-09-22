@@ -34,7 +34,8 @@ Detailed contract and named acceptance tests: [BNO085_PLAN.md](BNO085_PLAN.md).
 FPGA startup requests acceleration/gyro at 400 Hz, Rotation Vector at 100 Hz, with a
 120 us TX byte gap. Actual acceleration and gyro must each exceed 250 Hz on hardware.
 
-- [ ] SHTP-over-UART deframer (flag/escape bytes from the BNO08x datasheet)
+- [x] SHTP-over-UART deframer: staging, flag/escape decode, length validation,
+      resynchronization, timeout/backpressure/error tests (9/9)
 - [ ] SHTP header parser (length, channel, sequence number)
 - [ ] Report parsers: accelerometer, gyro, rotation vector → Q-format registers + timestamp
 - [ ] Startup FSM + command ROM: reset, wait for advertisement, Set Feature per report

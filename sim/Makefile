@@ -39,6 +39,13 @@ COMPILE_ARGS += -Puart_rx_fifo.CLKS_PER_BIT=$(UART_RX_FIFO_CLKS_PER_BIT)
 COMPILE_ARGS += -Puart_rx_fifo.FIFO_DEPTH=$(UART_FIFO_DEPTH)
 SIM_BUILD = sim_build/uart_rx_fifo_c$(UART_RX_FIFO_CLKS_PER_BIT)_d$(UART_FIFO_DEPTH)
 endif
+ifeq ($(TOP),shtp_uart_deframer)
+export SHTP_MAX_PACKET_BYTES ?= 32
+export SHTP_TIMEOUT_CYCLES ?= 40
+COMPILE_ARGS += -Pshtp_uart_deframer.MAX_PACKET_BYTES=$(SHTP_MAX_PACKET_BYTES)
+COMPILE_ARGS += -Pshtp_uart_deframer.TIMEOUT_CYCLES=$(SHTP_TIMEOUT_CYCLES)
+SIM_BUILD = sim_build/shtp_uart_deframer_m$(SHTP_MAX_PACKET_BYTES)_t$(SHTP_TIMEOUT_CYCLES)
+endif
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 

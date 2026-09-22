@@ -12,6 +12,13 @@ framing-error recovery and reset. Integration exposed and fixed a UART recovery
 bug: RX must observe idle high before it can arm for another start, so a bad low
 stop bit cannot become a phantom frame. New UART tests pass at 100 MHz/divider 33
 against independent 3 Mbaud input.
+`shtp_uart_deframer` stages a whole UART-SHTP message before publishing it,
+decodes reserved-byte escapes, supports protocol 0 control and protocol 1 SHTP,
+validates SHTP length, rejects continuation packets, and resynchronizes after
+bad protocol, malformed escape, oversize input, timeout, or upstream byte loss.
+Its 9/9 tests pass at two parameter sets; escape and length-check mutations were
+confirmed to fail. It still needs an integration wrapper consuming
+`uart_rx_fifo`, followed by the SHTP and SH-2 report parsers.
 FPGA startup requests accel/gyro 400 Hz and Rotation Vector 100 Hz, matching the
 inspected STM32 source, with 120 us TX byte spacing; physical rates need measurement.
 FPGA is the sole sensor host. It stores signed integers
@@ -104,10 +111,12 @@ module passes. Commits are co-authored with Claude per the user's setup.
 | `uart_rx` | 6/6 | 2-flop sync, half-bit then full-bit sampling, false-start rejection, `frame_error` on a bad stop bit |
 | `fifo_sync` | 8/8 | synchronous parameterized queue; complete implementation with explanatory TODOs retained |
 | `uart_rx_fifo` | 5/5 | complete 3 Mbaud serial-bit → received-byte → queued-byte integration |
+| `shtp_uart_deframer` | 9/9 | complete staged flag/escape decoder with validation, recovery and counters |
 | `top` | — | blinky bring-up: LD4 at 1 Hz, BTN0 resets. `uart_*` are not wired into it yet |
 
-Next for the IMU path: SHTP-over-UART deframer consuming `uart_rx_fifo`. BNO085
-requirements are in BNO085_PLAN.md. Other planned blocks: `debounce` + foot
+Next for the IMU path: connect `uart_rx_fifo` to `shtp_uart_deframer`, then parse
+SHTP headers and the three SH-2 reports. BNO085 requirements are in
+BNO085_PLAN.md. Other planned blocks: `debounce` + foot
 switches, then `cycle_timer`
 (the 1 kHz global sample strobe), then SPI master + AS5047P readers.
 
