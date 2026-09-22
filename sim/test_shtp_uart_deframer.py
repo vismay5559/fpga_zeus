@@ -265,6 +265,35 @@ async def abort_never_splices_bytes_across_a_loss(dut):
 
 
 @cocotb.test()
+async def abort_during_output_finishes_validated_packet_then_hunts(dut):
+    await setup(dut)
+    dut.out_ready.value = 0
+    packets, watcher = packet_monitor(dut)
+    first = shtp_content([0x31, 0x32, 0x33], sequence=1)
+    second = shtp_content([0x41, 0x42], sequence=2)
+    try:
+        await send_bytes(dut, uart_message(1, first))
+        await ClockCycles(dut.clk, 3)
+        assert dut.out_valid.value == 1
+
+        # This fault belongs to later upstream traffic. The already validated
+        # first packet must still emerge whole once the consumer resumes.
+        await pulse_abort(dut)
+        dut.out_ready.value = 1
+        await wait_for_packets(dut, packets, 1)
+        assert packets[0]["content"] == first
+
+        # hunt_after_emit means bytes without a new flag cannot be attached to
+        # the old closing boundary.
+        await send_bytes(dut, [1, 5, 0, 3, 9, 0xAA])
+        await send_bytes(dut, uart_message(1, second))
+        await wait_for_packets(dut, packets, 2)
+        assert packets[1]["content"] == second
+    finally:
+        watcher.cancel()
+
+
+@cocotb.test()
 async def invalid_protocol_drops_until_new_boundary(dut):
     await setup(dut)
     packets, watcher = packet_monitor(dut)

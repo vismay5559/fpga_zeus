@@ -46,6 +46,17 @@ COMPILE_ARGS += -Pshtp_uart_deframer.MAX_PACKET_BYTES=$(SHTP_MAX_PACKET_BYTES)
 COMPILE_ARGS += -Pshtp_uart_deframer.TIMEOUT_CYCLES=$(SHTP_TIMEOUT_CYCLES)
 SIM_BUILD = sim_build/shtp_uart_deframer_m$(SHTP_MAX_PACKET_BYTES)_t$(SHTP_TIMEOUT_CYCLES)
 endif
+ifeq ($(TOP),bno085_uart_rx)
+export BNO_RX_CLKS_PER_BIT ?= 33
+export BNO_RX_FIFO_DEPTH ?= 4
+export BNO_RX_MAX_PACKET_BYTES ?= 32
+export BNO_RX_TIMEOUT_CYCLES ?= 450
+COMPILE_ARGS += -Pbno085_uart_rx.CLKS_PER_BIT=$(BNO_RX_CLKS_PER_BIT)
+COMPILE_ARGS += -Pbno085_uart_rx.FIFO_DEPTH=$(BNO_RX_FIFO_DEPTH)
+COMPILE_ARGS += -Pbno085_uart_rx.MAX_PACKET_BYTES=$(BNO_RX_MAX_PACKET_BYTES)
+COMPILE_ARGS += -Pbno085_uart_rx.TIMEOUT_CYCLES=$(BNO_RX_TIMEOUT_CYCLES)
+SIM_BUILD = sim_build/bno085_uart_rx_c$(BNO_RX_CLKS_PER_BIT)_d$(BNO_RX_FIFO_DEPTH)_m$(BNO_RX_MAX_PACKET_BYTES)_t$(BNO_RX_TIMEOUT_CYCLES)
+endif
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 

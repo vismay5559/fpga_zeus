@@ -78,6 +78,7 @@ module shtp_uart_deframer #(
     reg [CW-1:0] collect_count;
     reg [AW-1:0] emit_index;
     reg          escape_pending;
+    reg          hunt_after_emit;
     reg [TW-1:0] timeout_count;
 
     // TODO 2 (implemented): Use valid/ready handshakes on both sides. A byte
@@ -113,6 +114,7 @@ module shtp_uart_deframer #(
             collect_count              <= {CW{1'b0}};
             emit_index                 <= {AW{1'b0}};
             escape_pending             <= 1'b0;
+            hunt_after_emit             <= 1'b0;
             timeout_count              <= {TW{1'b0}};
             packet_start               <= 1'b0;
             packet_protocol            <= 8'h00;
@@ -126,12 +128,33 @@ module shtp_uart_deframer #(
         // TODO 5 (implemented): A lost/corrupt upstream byte invalidates the
         // whole current frame. Never join bytes from opposite sides of a loss.
         end else if (stream_abort) begin
-            // Upstream already owns the cause-specific counter. We only make
-            // sure bytes on opposite sides of the loss are never joined.
-            state          <= ST_HUNT;
-            collect_count  <= {CW{1'b0}};
-            escape_pending <= 1'b0;
-            timeout_count  <= {TW{1'b0}};
+            // A packet already in ST_EMIT was fully staged and validated before
+            // this newer upstream fault. Finish it without duplicating a byte,
+            // then hunt for a fresh boundary. Any packet still being collected
+            // is invalid immediately.
+            if (state == ST_EMIT_START) begin
+                state           <= ST_EMIT;
+                hunt_after_emit <= 1'b1;
+            end else if (state == ST_EMIT) begin
+                if (output_fire) begin
+                    if (out_last) begin
+                        emit_index      <= {AW{1'b0}};
+                        state           <= ST_HUNT;
+                        hunt_after_emit <= 1'b0;
+                    end else begin
+                        emit_index      <= emit_index + 1'b1;
+                        hunt_after_emit <= 1'b1;
+                    end
+                end else begin
+                    hunt_after_emit <= 1'b1;
+                end
+            end else begin
+                state           <= ST_HUNT;
+                collect_count   <= {CW{1'b0}};
+                escape_pending  <= 1'b0;
+                hunt_after_emit <= 1'b0;
+            end
+            timeout_count <= {TW{1'b0}};
         end else begin
             // TODO 6 (implemented): Time out an unfinished frame. The timeout
             // runs only while collecting and restarts on each accepted byte.
@@ -195,6 +218,7 @@ module shtp_uart_deframer #(
                                 packet_len   <= collect_count;
                                 packet_start <= 1'b1;
                                 emit_index   <= {AW{1'b0}};
+                                hunt_after_emit <= 1'b0;
                                 state        <= (collect_count == 0)
                                                   ? ST_PROTOCOL : ST_EMIT_START;
                             end else if (collect_count < 4) begin
@@ -210,6 +234,7 @@ module shtp_uart_deframer #(
                                 packet_len   <= collect_count;
                                 packet_start <= 1'b1;
                                 emit_index   <= {AW{1'b0}};
+                                hunt_after_emit <= 1'b0;
                                 state        <= ST_EMIT_START;
                             end
                             collect_count  <= {CW{1'b0}};
@@ -266,7 +291,8 @@ module shtp_uart_deframer #(
                         if (out_last) begin
                             emit_index <= {AW{1'b0}};
                             // The closing flag already provided a boundary.
-                            state      <= ST_PROTOCOL;
+                            state      <= hunt_after_emit ? ST_HUNT : ST_PROTOCOL;
+                            hunt_after_emit <= 1'b0;
                         end else begin
                             emit_index <= emit_index + 1'b1;
                         end

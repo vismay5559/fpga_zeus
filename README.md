@@ -41,9 +41,13 @@ scripts/      Vivado build and programming scripts (Tcl, no GUI needed)
 | [`uart_rx`](rtl/uart_rx.v) | done | receiver: 2-flop synchronizer, mid-bit sampling, glitch rejection, framing errors |
 | [`fifo_sync`](rtl/fifo_sync.v) | done | parameterized synchronous byte queue with overflow/underflow diagnostics |
 | [`uart_rx_fifo`](rtl/uart_rx_fifo.v) | done | connects UART RX bytes to FIFO; tested with independent 3 Mbaud input |
+| [`shtp_uart_deframer`](rtl/shtp_uart_deframer.v) | done | stages, unescapes and validates complete UART-SHTP packets |
+| [`bno085_uart_rx`](rtl/bno085_uart_rx.v) | done | complete serial RX → FIFO → validated SHTP packet integration and recovery |
 
 The [FIFO walkthrough](sim/FIFO_EXERCISE.md) explains its tests and RTL from basics.
 IMU requirements and STM32 comparison: [BNO085 plan](BNO085_PLAN.md).
+The [UART/BNO085 walkthrough](UART_BNO085_WALKTHROUGH.md) explains UART, every
+receive module and every cocotb file from the beginning.
 
 ## Working on it
 
@@ -58,6 +62,7 @@ cd sim
 make TOP=uart_tx WAVES=1     # compile with Icarus, run the cocotb tests, record waves
 make TOP=uart_tx view        # open the waveform in GTKWave
 make TOP=uart_tx COCOTB_TESTCASE=single_bytes   # run one test
+make TOP=bno085_uart_rx                         # full BNO085 receive transport
 
 verilator --lint-only -Wall rtl/uart_tx.v       # from the project root
 ```

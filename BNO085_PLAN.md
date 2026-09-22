@@ -1,10 +1,10 @@
 # BNO085 implementation contract and verification plan
 
 Updated 2026-09-22. FPGA-only implementation order: FIFO, command transport and
-deframer exercises, report decoder, snapshot integration. Only the FIFO skeleton
-and UART timing tests are delivered at this stage. The acceptance tests listed
-below for command sending, decoding and snapshots are requirements, not passing
-tests for hardware that already exists.
+deframer exercises, report decoder, snapshot integration. The UART receiver,
+synchronous FIFO, SHTP deframer and complete serial-to-validated-packet receive
+integration are implemented and tested. Acceptance tests below for command
+sending, SH-2 decoding and snapshots remain requirements for later hardware.
 
 ## Reports and STM32 baseline
 

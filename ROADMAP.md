@@ -35,7 +35,9 @@ FPGA startup requests acceleration/gyro at 400 Hz, Rotation Vector at 100 Hz, wi
 120 us TX byte gap. Actual acceleration and gyro must each exceed 250 Hz on hardware.
 
 - [x] SHTP-over-UART deframer: staging, flag/escape decode, length validation,
-      resynchronization, timeout/backpressure/error tests (9/9)
+      resynchronization, timeout/backpressure/error tests (10/10)
+- [x] End-to-end BNO085 RX transport: exact 3 Mbaud serial input → UART RX →
+      FIFO/holding bridge → validated SHTP packets; overflow/error flush recovery
 - [ ] SHTP header parser (length, channel, sequence number)
 - [ ] Report parsers: accelerometer, gyro, rotation vector → Q-format registers + timestamp
 - [ ] Startup FSM + command ROM: reset, wait for advertisement, Set Feature per report
