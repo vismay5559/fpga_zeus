@@ -1,17 +1,33 @@
 `default_nettype none
-// Complete BNO085 receive data path from asynchronous UART RX to retained IMU
-// report registers. Configuration commands and TX flow control are separate.
-module bno085_imu_rx #(
+// Complete bidirectional BNO085 host: UART receive/report banks plus a paced,
+// BSN-flow-controlled 400/400/100 Hz startup and reset-reconfiguration path.
+module bno085_imu #(
     parameter integer CLKS_PER_BIT      = 33,
     parameter integer FIFO_DEPTH       = 16,
     parameter integer MAX_PACKET_BYTES = 512,
     parameter integer TIMEOUT_CYCLES   = 1000000,
-    parameter integer CLKS_PER_US      = 100
+    parameter integer CLKS_PER_US      = 100,
+    parameter integer CLK_HZ           = 100000000,
+    parameter integer TX_BYTE_GAP_US   = 120,
+    parameter integer FEATURE_GAP_US   = 5000,
+    parameter integer RESPONSE_TIMEOUT_US = 100000
 )(
     input wire clk,
     input wire rst,
     input wire rx,
+    output wire tx,
     input wire snapshot,
+
+    output wire configured,
+    output wire configuring,
+    output wire tx_busy,
+    output wire [31:0] sensor_reset_count,
+    output wire [31:0] bsn_query_count,
+    output wire [31:0] bsn_timeout_count,
+    output wire [31:0] config_retry_count,
+    output wire [31:0] confirmation_error_count,
+    output wire [31:0] advertised_uart_timeout_ms,
+    output wire rotation_confirmed, accel_confirmed, gyro_confirmed,
 
     output wire signed [15:0] accel_x, accel_y, accel_z,
     output wire [4:0] accel_q_point,
@@ -66,7 +82,9 @@ module bno085_imu_rx #(
     wire [$clog2(MAX_PACKET_BYTES+1)-1:0] packet_len;
     wire [63:0] packet_capture_us;
     wire [7:0] packet_data;
-    wire packet_valid, packet_ready, packet_first, packet_last;
+    wire packet_valid, transport_ready, parser_ready, startup_ready;
+    wire parser_valid, startup_valid, packet_first, packet_last;
+    wire sensor_reset_pulse;
     wire [$clog2(FIFO_DEPTH+1)-1:0] unused_fifo_level;
     wire unused_fifo_full, unused_recovery_active;
 
@@ -80,7 +98,7 @@ module bno085_imu_rx #(
         .packet_start(packet_start), .packet_protocol(packet_protocol),
         .packet_len(packet_len), .packet_capture_us(packet_capture_us),
         .out_data(packet_data), .out_valid(packet_valid),
-        .out_ready(packet_ready), .out_first(packet_first), .out_last(packet_last),
+        .out_ready(transport_ready), .out_first(packet_first), .out_last(packet_last),
         .fifo_level(unused_fifo_level), .fifo_full(unused_fifo_full),
         .recovery_active(unused_recovery_active),
         .uart_frame_error_count(uart_frame_error_count),
@@ -91,12 +109,18 @@ module bno085_imu_rx #(
         .continuation_error_count(continuation_error_count)
     );
 
-    // TODO 2 (implemented): Validated packet stream into atomic SH-2 report banks.
+    // TODO 2 (implemented): fan out each packet atomically. Neither consumer
+    // sees a transfer unless both are ready for that same byte.
+    assign transport_ready = parser_ready && startup_ready;
+    assign parser_valid = packet_valid && startup_ready;
+    assign startup_valid = packet_valid && parser_ready;
+
+    // TODO 3 (implemented): Validated packet stream into atomic SH-2 report banks.
     sh2_report_parser #(.MAX_PACKET_BYTES(MAX_PACKET_BYTES)) reports (
-        .clk(clk), .rst(rst), .snapshot(snapshot), .sensor_reset(1'b0),
+        .clk(clk), .rst(rst), .snapshot(snapshot), .sensor_reset(sensor_reset_pulse),
         .packet_start(packet_start), .packet_protocol(packet_protocol),
         .packet_len(packet_len), .packet_capture_us(packet_capture_us),
-        .in_data(packet_data), .in_valid(packet_valid), .in_ready(packet_ready),
+        .in_data(packet_data), .in_valid(parser_valid), .in_ready(parser_ready),
         .in_first(packet_first), .in_last(packet_last),
 
         .accel_x(accel_x), .accel_y(accel_y), .accel_z(accel_z),
@@ -135,6 +159,30 @@ module bno085_imu_rx #(
         .accel_sequence_gap_count(accel_sequence_gap_count),
         .gyro_sequence_gap_count(gyro_sequence_gap_count),
         .rotation_sequence_gap_count(rotation_sequence_gap_count)
+    );
+
+    // TODO 4 (implemented): observe the same validated packets, generate paced
+    // host writes and restart configuration on a confirmed sensor reset.
+    bno085_startup_controller #(
+        .CLK_HZ(CLK_HZ), .CLKS_PER_BIT(CLKS_PER_BIT),
+        .TX_BYTE_GAP_US(TX_BYTE_GAP_US), .FEATURE_GAP_US(FEATURE_GAP_US),
+        .RESPONSE_TIMEOUT_US(RESPONSE_TIMEOUT_US),
+        .MAX_PACKET_BYTES(MAX_PACKET_BYTES)
+    ) startup (
+        .clk(clk), .rst(rst),
+        .packet_start(packet_start), .packet_protocol(packet_protocol),
+        .packet_len(packet_len), .in_data(packet_data),
+        .in_valid(startup_valid), .in_ready(startup_ready),
+        .in_first(packet_first), .in_last(packet_last),
+        .tx(tx), .tx_busy(tx_busy), .configured(configured),
+        .configuring(configuring), .sensor_reset_pulse(sensor_reset_pulse),
+        .sensor_reset_count(sensor_reset_count),
+        .bsn_query_count(bsn_query_count), .bsn_timeout_count(bsn_timeout_count),
+        .config_retry_count(config_retry_count),
+        .confirmation_error_count(confirmation_error_count),
+        .advertised_uart_timeout_ms(advertised_uart_timeout_ms),
+        .rotation_confirmed(rotation_confirmed),
+        .accel_confirmed(accel_confirmed), .gyro_confirmed(gyro_confirmed)
     );
 endmodule
 `default_nettype wire

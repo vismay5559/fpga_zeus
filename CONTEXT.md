@@ -29,12 +29,18 @@ correct RTL was restored.
 They retain raw signed Q8/Q9/Q14 integers, quaternion accuracy Q12, SH-2 and SHTP
 sequences, packed status/delay, Base Timestamp/Rebase metadata, opening-boundary
 capture time, `has_sample`, and new-since-snapshot flags. Unknown or truncated
-records discard the entire staged packet. Six focused parser tests and two actual
+records discard the entire staged packet. Seven focused parser tests and two actual
 3 Mbaud serial-to-register tests pass. A real passing UART FST waveform and GTKWave
 layout live in `sim/waves/`; run `make view-uart-example` from `sim/`.
-FPGA startup requests accel/gyro 400 Hz and Rotation Vector 100 Hz, matching the
-inspected STM32 source, with 120 us TX byte spacing; physical rates need measurement.
-FPGA is the sole sensor host. It stores signed integers
+`bno085_uart_packet_tx`, `bno085_startup_controller`, and `bno085_imu` now
+complete the simulated bidirectional host. The transmitter measures the quiet time
+from one stop-bit end to the next start and defaults to 120 us. The controller sends
+BSQ before every write, accepts one unexpired BSN token, requests/reads the advertised
+timeout, sends Rotation Vector/accel/gyro Set Feature commands for 100/400/400 Hz,
+confirms all three with Get Feature responses, retries bad/missing confirmations, and
+reconfigures after a deduplicated channel-1 reset notice. A confirmed reset invalidates
+all report `has_sample`/`new` flags and sequence history. Physical rates still need
+measurement. FPGA is the sole sensor host. It stores signed integers
 plus Q points (8/9/14), Pi scales; acceleration includes gravity. Rotation Vector
 is comparison-only, never an InEKF input. Pinned STM32 code converts Q values to
 floats, so account for this representation difference when comparing outputs.
@@ -126,13 +132,16 @@ module passes. Commits are co-authored with Claude per the user's setup.
 | `uart_rx_fifo` | 5/5 | complete 3 Mbaud serial-bit → received-byte → queued-byte integration |
 | `shtp_uart_deframer` | 10/10 | complete staged flag/escape decoder with validation, recovery and counters |
 | `bno085_uart_rx` | 6/6 | real serial input through UART/FIFO/bridge to validated packets; loss recovery |
-| `sh2_report_parser` | 6/6 | atomic SH-2 accel/gyro/rotation decode with timing, sequences and freshness |
+| `sh2_report_parser` | 7/7 | atomic SH-2 accel/gyro/rotation decode with timing, sequences and freshness |
 | `bno085_imu_rx` | 2/2 | exact 3 Mbaud serial packets update retained raw IMU report banks |
+| `bno085_uart_packet_tx` | 4/4 | framing, escaping, per-channel sequences and measured inter-byte gaps |
+| `bno085_startup_controller` | 4/4 | BSN gating, exact profile, confirmation retry and reset reconfiguration |
+| `bno085_imu` | 1/1 | physical bidirectional wire integration, report fanout and reset invalidation |
 | `top` | — | blinky bring-up: LD4 at 1 Hz, BTN0 resets. `uart_*` are not wired into it yet |
 
-Next for the IMU path: build the TX command transport, buffer-status flow control
-and startup FSM for the 400/400/100 Hz profile. BNO085 requirements are in
-BNO085_PLAN.md. Other planned blocks: `debounce` + foot
+Next for the IMU path: replay a real BNO085/STM32 capture, connect `bno085_imu`
+to board pins and the 1 kHz/Pi register path, then measure sustained 400/400/100
+delivery on hardware. BNO085 requirements are in BNO085_PLAN.md. Other planned blocks: `debounce` + foot
 switches, then `cycle_timer`
 (the 1 kHz global sample strobe), then SPI master + AS5047P readers.
 

@@ -1,12 +1,12 @@
 # BNO085 implementation contract and verification plan
 
-Updated 2026-09-22. FPGA-only implementation order: FIFO, command transport and
-deframer exercises, report decoder, snapshot integration. The UART receiver,
-synchronous FIFO, SHTP deframer and complete serial-to-validated-packet receive
-integration are implemented and tested. Acceptance tests below for command
-sending and startup remain requirements for later hardware. The SH-2 receive
-parser now decodes calibrated acceleration, calibrated gyro and Rotation Vector,
-including batch timing metadata, sequence diagnostics and snapshot freshness.
+Updated 2026-09-24. The UART receive path, report decoder, paced SHTP transmitter,
+BSQ/BSN flow control, 400/400/100 startup command ROM, Get Feature confirmation,
+and automatic reset reconfiguration are implemented and tested in simulation.
+The SH-2 parser decodes calibrated acceleration, calibrated gyro and Rotation
+Vector with batch timing metadata, sequence diagnostics and snapshot freshness.
+Real capture replay, board pin integration and sustained-rate hardware measurement
+remain required before treating the sensor path as complete on the robot.
 
 ## Reports and STM32 baseline
 

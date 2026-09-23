@@ -45,6 +45,9 @@ scripts/      Vivado build and programming scripts (Tcl, no GUI needed)
 | [`bno085_uart_rx`](rtl/bno085_uart_rx.v) | done | complete serial RX → FIFO → validated SHTP packet integration and recovery |
 | [`sh2_report_parser`](rtl/sh2_report_parser.v) | done | atomically decodes accel Q8, gyro Q9 and Rotation Vector Q14 reports |
 | [`bno085_imu_rx`](rtl/bno085_imu_rx.v) | done | real 3 Mbaud RX through retained raw IMU registers, timestamps and freshness |
+| [`bno085_uart_packet_tx`](rtl/bno085_uart_packet_tx.v) | done | SHTP framing/escaping and a parameterized gap after every physical UART byte |
+| [`bno085_startup_controller`](rtl/bno085_startup_controller.v) | done | BSQ/BSN flow control, exact 400/400/100 commands, confirmation and reset recovery |
+| [`bno085_imu`](rtl/bno085_imu.v) | done | complete bidirectional sensor host from RX/TX pins to configured IMU registers |
 
 The [FIFO walkthrough](sim/FIFO_EXERCISE.md) explains its tests and RTL from basics.
 IMU requirements and STM32 comparison: [BNO085 plan](BNO085_PLAN.md).
@@ -67,6 +70,10 @@ make TOP=uart_tx COCOTB_TESTCASE=single_bytes   # run one test
 make TOP=bno085_uart_rx                         # full BNO085 receive transport
 make TOP=sh2_report_parser                      # focused SH-2 report tests
 make TOP=bno085_imu_rx                          # serial wire through final IMU registers
+make TOP=bno085_uart_packet_tx                  # paced SHTP transmitter
+make test-bno-tx-gaps                           # measure both 100 us and 120 us settings
+make TOP=bno085_startup_controller              # command and flow-control state machine
+make TOP=bno085_imu                             # complete bidirectional host
 make view-uart-example                          # checked-in passing UART waveform
 
 verilator --lint-only -Wall rtl/uart_tx.v       # from the project root

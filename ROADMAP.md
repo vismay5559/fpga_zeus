@@ -41,9 +41,9 @@ FPGA startup requests acceleration/gyro at 400 Hz, Rotation Vector at 100 Hz, wi
 - [x] SHTP header parser: length/channel/sequence validation and gap counters
 - [x] Report parser: accelerometer Q8, gyro Q9, Rotation Vector Q14/Q12 accuracy,
       base/rebase timing metadata, capture timestamp and snapshot freshness
-- [ ] Startup FSM + command ROM: reset, wait for advertisement, Set Feature per report
-- [ ] FPGA startup: wait for advertisement, configure the 400/400/100 profile and confirm intervals
-- [ ] Parameterized TX byte gap, buffer-status control, timestamps/freshness and error counters/tests per BNO085_PLAN
+- [x] Startup FSM + command ROM: request advertisement, Set Feature per report, reset recovery
+- [x] FPGA startup simulation: configure the 400/400/100 profile and confirm all intervals
+- [x] Parameterized TX byte gap, BSQ/BSN flow control, reset invalidation and diagnostic counters/tests
 - [ ] Replay real frames captured from the STM32 setup in cocotb
 - Done when: replayed captures decode to the same values the STM32 reports.
 

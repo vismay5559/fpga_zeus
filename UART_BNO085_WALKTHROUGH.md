@@ -87,8 +87,10 @@ It is the basic pattern used for periodic timing.
 sent least-significant bit first. `ready` tells the producer when another byte
 can be accepted.
 
-This generic transmitter does not contain the BNO085's 120 us byte spacing. A
-future BNO085 command sender will place that delay around `uart_tx`.
+This generic transmitter does not contain the BNO085's 120 us byte spacing.
+`bno085_uart_packet_tx` wraps it and starts its delay only after the stop bit has
+finished. Keeping this rule outside `uart_tx` lets other UART devices transmit
+back-to-back when their protocols allow it.
 
 ### `uart_rx.v`
 
@@ -183,8 +185,59 @@ new report remains pending for the following snapshot.
 ### `bno085_imu_rx.v`
 
 This thin top level connects `bno085_uart_rx` directly to `sh2_report_parser`.
-It is the complete receive data path from one asynchronous pin to acceleration,
-gyro and quaternion registers. The BNO085 command transmitter is still separate.
+It remains useful when testing the receive path by itself.
+
+### `bno085_uart_packet_tx.v`
+
+This block turns a payload into physical UART-SHTP bytes. For an ordinary SHTP
+write it sends:
+
+```text
+0x7e, protocol 1, four-byte SHTP header, payload, 0x7e
+```
+
+Header and payload bytes equal to `0x7e` or `0x7d` are escaped. Sequence counters
+are separate per channel. A BSQ is the shorter protocol-0 message `7e 00 7e`.
+After `uart_tx` completes a stop bit, the block waits `TX_BYTE_GAP_US` before it
+can start the next wire byte. The default is 120 us; this also applies between
+the closing flag of one packet and the opening flag of the next packet.
+
+### `bno085_startup_controller.v`
+
+A BNO085 may ignore a host write when its receive storage is unavailable. The
+controller therefore performs this handshake for every SHTP command:
+
+```text
+FPGA sends BSQ -> sensor returns BSN(bytes available) -> FPGA sends one command
+```
+
+The BSN grants one write. It is consumed after that write and expires after the
+time advertised in SHTP tag `0x81`. An undersized or expired token cannot open
+the transmit gate; the controller asks again and increments a diagnostic counter.
+
+The startup order is:
+
+1. request the full SHTP advertisement, which also handles attaching to an IMU
+   that was already running before FPGA configuration;
+2. Set Rotation Vector to 10,000 us (100 Hz);
+3. Set calibrated acceleration to 2,500 us (400 Hz);
+4. Set calibrated gyro to 2,500 us (400 Hz);
+5. request all three configurations with Get Feature;
+6. assert `configured` only after all three exact intervals are returned.
+
+Each command is separated by the STM32-compatible 5 ms command pause. A wrong or
+missing confirmation restarts the complete profile and increments a retry/error
+counter. A validated channel-1 reset notice is counted once for that reset episode,
+clears `configured`, invalidates the three report banks and starts configuration
+again. Repeated reset notices before recovery cannot inflate the reset count.
+
+### `bno085_imu.v`
+
+This is the complete bidirectional host. One validated receive packet is fanned
+out to both the report parser and startup controller with a shared valid/ready
+handshake, so neither consumer can accidentally read a byte twice. Its pins are
+the sensor's asynchronous `rx` and `tx`; its outputs include retained IMU values,
+configuration status and all receive/startup diagnostic counters.
 
 ## 4. Verilog syntax used here
 
@@ -336,7 +389,8 @@ overflow conditions practical to reach in a short simulation.
 - covers report commit on the same edge as a snapshot;
 - distinguishes normal sequence rollover from real gaps;
 - proves an unknown or truncated record cannot partially update registers;
-- rejects wrong channels, stream markers and SHTP header lengths.
+- rejects wrong channels, stream markers and SHTP header lengths;
+- invalidates `has_sample`, freshness and old sequence history after reset.
 
 ### `test_bno085_imu_rx.py`
 
@@ -344,6 +398,27 @@ Python sends actual escaped 3 Mbaud serial frames through every receive block an
 checks the final acceleration, gyro and quaternion register banks. A second test
 consumes freshness with a snapshot and confirms a later packet refreshes only the
 report type it contains.
+
+### `test_bno085_uart_packet_tx.py`
+
+Python acts as a UART receiver and checks the actual TX pin. It reconstructs each
+wire byte, verifies SHTP length/channel/sequence fields and escaping, and measures
+the quiet interval from the previous stop-bit end to the next start bit. It also
+checks the exact three-byte BSQ and independent sequence numbers per channel.
+
+### `test_bno085_startup_controller.py`
+
+A simulated sensor grants or withholds BSNs and injects validated advertisement,
+Get Feature and reset packets. The four tests cover the exact command order and
+interval bytes, one token per write, an insufficient token, wrong confirmation
+and retry, and deduplicated reset reconfiguration.
+
+### `test_bno085_imu.py`
+
+This final integration test uses physical UART bits in both directions. The
+simulated sensor answers the FPGA's real BSQs and commands, lets startup reach
+`configured`, sends all three sensor reports, then sends a reset notice and checks
+that the previously retained samples become invalid.
 
 ## 7. Running the tests
 
@@ -354,6 +429,10 @@ cd ~/fpga/biped-fpga/sim
 make TOP=bno085_uart_rx
 make TOP=sh2_report_parser
 make TOP=bno085_imu_rx
+make TOP=bno085_uart_packet_tx
+make test-bno-tx-gaps
+make TOP=bno085_startup_controller
+make TOP=bno085_imu
 make TOP=shtp_uart_deframer
 make TOP=uart_rx_fifo
 make test-uart-bno085
@@ -366,23 +445,23 @@ A small waveform from the passing `uart_rx.single_bytes` test is checked into
 make view-uart-example
 ```
 
-From the repository root, lint the integrated receive hierarchy with:
+From the repository root, lint the complete host hierarchy with:
 
 ```bash
 verilator --lint-only -Wall \
-  rtl/fifo_sync.v rtl/uart_rx.v rtl/uart_rx_fifo.v \
+  rtl/fifo_sync.v rtl/uart_rx.v rtl/uart_rx_fifo.v rtl/uart_tx.v \
   rtl/shtp_uart_deframer.v rtl/bno085_uart_rx.v rtl/sh2_report_parser.v \
-  rtl/bno085_imu_rx.v --top-module bno085_imu_rx
+  rtl/bno085_uart_packet_tx.v rtl/bno085_startup_controller.v \
+  rtl/bno085_imu.v --top-module bno085_imu
 ```
 
-## 8. What remains after this receive transport
+## 8. What remains after the simulated end-to-end host
 
-The FPGA can now turn the BNO085 RX wire into retained raw SH-2 sensor registers
-in simulation. The remaining BNO085 work is:
+The FPGA can configure the BNO085 and turn its RX wire into retained raw SH-2
+sensor registers in simulation. The remaining BNO085 work is:
 
-1. construct startup Set Feature commands for 400/400/100 Hz;
-2. implement protocol-0 buffer-status flow control and the 120 us TX byte gap;
-3. detect confirmed sensor resets and reconfigure automatically;
-4. replay real captured BNO085 traffic;
-5. connect the report banks to the full 1 kHz snapshot and Pi interface;
-6. synthesize, constrain pins and verify rates on physical hardware.
+1. replay traffic captured from the real BNO085 and STM32 setup;
+2. connect `bno085_imu` RX/TX and optional interrupt/reset pins in the board top;
+3. connect report/configuration registers to the 1 kHz snapshot and Pi interface;
+4. synthesize and verify timing/resource use;
+5. measure sustained 400/400/100 delivery and error counters on physical hardware.

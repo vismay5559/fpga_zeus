@@ -69,6 +69,7 @@ def signed(signal, bits):
 
 async def setup(dut):
     dut.snapshot.value = 0
+    dut.sensor_reset.value = 0
     dut.packet_start.value = 0
     dut.packet_protocol.value = 0
     dut.packet_len.value = 0
@@ -125,6 +126,7 @@ async def pulse_snapshot(dut):
     await RisingEdge(dut.clk)
     await FallingEdge(dut.clk)
     dut.snapshot.value = 0
+    dut.sensor_reset.value = 0
 
 
 @cocotb.test()
@@ -201,6 +203,7 @@ async def snapshot_on_commit_edge_leaves_new_sample_pending(dut):
     await RisingEdge(dut.clk)
     await FallingEdge(dut.clk)
     dut.snapshot.value = 0
+    dut.sensor_reset.value = 0
     assert dut.gyro_new.value == 1
     assert (signed(dut.gyro_x, 16), signed(dut.gyro_y, 16),
             signed(dut.gyro_z, 16)) == (1, 2, 3)
@@ -277,3 +280,33 @@ async def non_sensor_packets_and_bad_stream_markers_are_safe(dut):
     await send_packet(dut, wrong_header)
     await wait_idle(dut)
     assert int(dut.packet_format_error_count.value) == 2
+
+
+@cocotb.test()
+async def confirmed_sensor_reset_invalidates_samples_and_sequence_history(dut):
+    await setup(dut)
+    await send_packet(dut, packet(
+        accel(100, 3, 0, 10, 20, 30)
+        + gyro(100, 3, 0, 40, 50, 60)
+        + rotation(100, 3, 0, 1, 2, 3, 4, 5), shtp_sequence=100))
+    await wait_idle(dut)
+    assert dut.accel_has_sample.value == 1
+
+    dut.sensor_reset.value = 1
+    await RisingEdge(dut.clk)
+    await FallingEdge(dut.clk)
+    dut.sensor_reset.value = 0
+    assert dut.accel_has_sample.value == 0
+    assert dut.gyro_has_sample.value == 0
+    assert dut.rotation_has_sample.value == 0
+    assert dut.accel_new.value == 0
+    assert signed(dut.accel_x, 16) == 10  # retained bits are marked invalid
+
+    # A reboot may restart every sequence at any value. The first new packet is
+    # a new baseline, not a false loss event.
+    await send_packet(dut, packet(accel(7, 3, 0, 70, 80, 90), shtp_sequence=7))
+    await wait_idle(dut)
+    assert dut.accel_has_sample.value == 1
+    assert signed(dut.accel_x, 16) == 70
+    assert int(dut.accel_sequence_gap_count.value) == 0
+    assert int(dut.shtp_sequence_gap_count.value) == 0

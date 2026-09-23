@@ -46,6 +46,29 @@ COMPILE_ARGS += -Pshtp_uart_deframer.MAX_PACKET_BYTES=$(SHTP_MAX_PACKET_BYTES)
 COMPILE_ARGS += -Pshtp_uart_deframer.TIMEOUT_CYCLES=$(SHTP_TIMEOUT_CYCLES)
 SIM_BUILD = sim_build/shtp_uart_deframer_m$(SHTP_MAX_PACKET_BYTES)_t$(SHTP_TIMEOUT_CYCLES)
 endif
+ifeq ($(TOP),bno085_startup_controller)
+export BNO_START_CLKS_PER_BIT ?= 4
+export BNO_START_CLK_HZ ?= 1000000
+export BNO_START_GAP_US ?= 3
+export BNO_START_FEATURE_GAP_US ?= 5
+export BNO_START_RESPONSE_TIMEOUT_US ?= 50
+COMPILE_ARGS += -Pbno085_startup_controller.CLKS_PER_BIT=$(BNO_START_CLKS_PER_BIT)
+COMPILE_ARGS += -Pbno085_startup_controller.CLK_HZ=$(BNO_START_CLK_HZ)
+COMPILE_ARGS += -Pbno085_startup_controller.TX_BYTE_GAP_US=$(BNO_START_GAP_US)
+COMPILE_ARGS += -Pbno085_startup_controller.FEATURE_GAP_US=$(BNO_START_FEATURE_GAP_US)
+COMPILE_ARGS += -Pbno085_startup_controller.RESPONSE_TIMEOUT_US=$(BNO_START_RESPONSE_TIMEOUT_US)
+COMPILE_ARGS += -Pbno085_startup_controller.MAX_PACKET_BYTES=64
+SIM_BUILD = sim_build/bno085_startup_controller_c$(BNO_START_CLKS_PER_BIT)_g$(BNO_START_GAP_US)
+endif
+ifeq ($(TOP),bno085_uart_packet_tx)
+export BNO_TX_CLKS_PER_BIT ?= 4
+export BNO_TX_CLK_HZ ?= 1000000
+export BNO_TX_GAP_US ?= 12
+COMPILE_ARGS += -Pbno085_uart_packet_tx.CLKS_PER_BIT=$(BNO_TX_CLKS_PER_BIT)
+COMPILE_ARGS += -Pbno085_uart_packet_tx.CLK_HZ=$(BNO_TX_CLK_HZ)
+COMPILE_ARGS += -Pbno085_uart_packet_tx.TX_BYTE_GAP_US=$(BNO_TX_GAP_US)
+SIM_BUILD = sim_build/bno085_uart_packet_tx_c$(BNO_TX_CLKS_PER_BIT)_g$(BNO_TX_GAP_US)
+endif
 ifeq ($(TOP),bno085_uart_rx)
 export BNO_RX_CLKS_PER_BIT ?= 33
 export BNO_RX_FIFO_DEPTH ?= 4
@@ -63,6 +86,21 @@ ifeq ($(TOP),sh2_report_parser)
 export SH2_MAX_PACKET_BYTES ?= 64
 COMPILE_ARGS += -Psh2_report_parser.MAX_PACKET_BYTES=$(SH2_MAX_PACKET_BYTES)
 SIM_BUILD = sim_build/sh2_report_parser_m$(SH2_MAX_PACKET_BYTES)
+endif
+ifeq ($(TOP),bno085_imu)
+export BNO_FULL_CLKS_PER_BIT ?= 4
+export BNO_FULL_FIFO_DEPTH ?= 8
+export BNO_FULL_MAX_PACKET_BYTES ?= 64
+COMPILE_ARGS += -Pbno085_imu.CLKS_PER_BIT=$(BNO_FULL_CLKS_PER_BIT)
+COMPILE_ARGS += -Pbno085_imu.FIFO_DEPTH=$(BNO_FULL_FIFO_DEPTH)
+COMPILE_ARGS += -Pbno085_imu.MAX_PACKET_BYTES=$(BNO_FULL_MAX_PACKET_BYTES)
+COMPILE_ARGS += -Pbno085_imu.TIMEOUT_CYCLES=200
+COMPILE_ARGS += -Pbno085_imu.CLKS_PER_US=1
+COMPILE_ARGS += -Pbno085_imu.CLK_HZ=1000000
+COMPILE_ARGS += -Pbno085_imu.TX_BYTE_GAP_US=3
+COMPILE_ARGS += -Pbno085_imu.FEATURE_GAP_US=5
+COMPILE_ARGS += -Pbno085_imu.RESPONSE_TIMEOUT_US=5000
+SIM_BUILD = sim_build/bno085_imu_c$(BNO_FULL_CLKS_PER_BIT)_m$(BNO_FULL_MAX_PACKET_BYTES)
 endif
 ifeq ($(TOP),bno085_imu_rx)
 export BNO_IMU_CLKS_PER_BIT ?= 33
@@ -82,9 +120,13 @@ include $(shell cocotb-config --makefiles)/Makefile.sim
 
 # Open the waveform in GTKWave: make TOP=uart_tx view
 # env -i strips the snap-VS-Code library paths that crash GTKWave in its terminal.
-.PHONY: view view-uart-example test-uart-bno085
+.PHONY: view view-uart-example test-uart-bno085 test-bno-tx-gaps
 test-uart-bno085:
 	$(MAKE) TOP=uart_rx UART_RX_CLKS_PER_BIT=33 COCOTB_TEST_MODULES=test_uart_rx_bno085
+
+test-bno-tx-gaps:
+	$(MAKE) TOP=bno085_uart_packet_tx BNO_TX_GAP_US=100
+	$(MAKE) TOP=bno085_uart_packet_tx BNO_TX_GAP_US=120
 
 view:
 	env -i HOME="$(HOME)" PATH=/usr/bin:/bin DISPLAY="$(DISPLAY)" \

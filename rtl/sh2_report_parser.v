@@ -8,6 +8,7 @@ module sh2_report_parser #(
     input  wire clk,
     input  wire rst,
     input  wire snapshot,
+    input  wire sensor_reset,
 
     input  wire       packet_start,
     input  wire [7:0] packet_protocol,
@@ -233,6 +234,26 @@ module sh2_report_parser #(
             scan_rotation_previous_valid <= 1'b0;
             temp_accel_gaps <= 32'd0; temp_gyro_gaps <= 32'd0;
             temp_rotation_gaps <= 32'd0;
+        end else if (sensor_reset) begin
+            // TODO 8 (implemented): a confirmed sensor restart invalidates
+            // freshness and sequence history without erasing diagnostic counts.
+            state <= ST_IDLE;
+            received_count <= {CW{1'b0}};
+            scan_index <= {CW{1'b0}};
+            stream_bad <= 1'b0;
+            temp_accel_present <= 1'b0;
+            temp_gyro_present <= 1'b0;
+            temp_rotation_present <= 1'b0;
+            accel_has_sample <= 1'b0;
+            gyro_has_sample <= 1'b0;
+            rotation_has_sample <= 1'b0;
+            accel_new <= 1'b0;
+            gyro_new <= 1'b0;
+            rotation_new <= 1'b0;
+            shtp_sequence_valid <= 1'b0;
+            accel_sequence_valid <= 1'b0;
+            gyro_sequence_valid <= 1'b0;
+            rotation_sequence_valid <= 1'b0;
         end else begin
             // Snapshot consumes old freshness. A commit later in this same
             // clocked block wins, leaving the new sample pending for next time.
