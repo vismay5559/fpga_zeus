@@ -12,7 +12,8 @@ module bno085_uart_rx #(
     parameter integer CLKS_PER_BIT    = 33,
     parameter integer FIFO_DEPTH     = 16,
     parameter integer MAX_PACKET_BYTES = 512,
-    parameter integer TIMEOUT_CYCLES = 1000000
+    parameter integer TIMEOUT_CYCLES = 1000000,
+    parameter integer CLKS_PER_US    = 100
 )(
     input  wire clk,
     input  wire rst,
@@ -21,6 +22,7 @@ module bno085_uart_rx #(
     output wire       packet_start,
     output wire [7:0] packet_protocol,
     output wire [$clog2(MAX_PACKET_BYTES+1)-1:0] packet_len,
+    output wire [63:0] packet_capture_us,
     output wire [7:0] out_data,
     output wire       out_valid,
     input  wire       out_ready,
@@ -52,9 +54,29 @@ module bno085_uart_rx #(
     reg        fifo_read_pending;
     reg        flushing;
 
+    localparam integer UW = (CLKS_PER_US <= 1) ? 1 : $clog2(CLKS_PER_US);
+    localparam integer US_LAST_INTEGER = CLKS_PER_US - 1;
+    localparam [UW-1:0] US_LAST = US_LAST_INTEGER[UW-1:0];
+    reg [UW-1:0] us_divider;
+    reg [63:0] time_us;
+
     wire deframer_ready;
     wire bridge_take = bridge_valid && deframer_ready;
     wire recovery_event = uart_frame_error || fifo_overflow || fifo_underflow;
+
+    // TODO 0 (implemented): Free-running microsecond arrival clock. The
+    // deframer latches it at the opening 0x7e boundary of each packet.
+    always @(posedge clk) begin
+        if (rst) begin
+            us_divider <= {UW{1'b0}};
+            time_us    <= 64'd0;
+        end else if (us_divider == US_LAST) begin
+            us_divider <= {UW{1'b0}};
+            time_us    <= time_us + 1'b1;
+        end else begin
+            us_divider <= us_divider + 1'b1;
+        end
+    end
 
     // TODO 1 (implemented): Convert serial frames to bytes and queue every good
     // byte. uart_rx_fifo already rejects bad-stop-bit frames.
@@ -147,6 +169,7 @@ module bno085_uart_rx #(
     ) packet_deframer (
         .clk                     (clk),
         .rst                     (rst),
+        .time_us                 (time_us),
         .in_data                 (bridge_data),
         .in_valid                (bridge_valid),
         .in_ready                (deframer_ready),
@@ -154,6 +177,7 @@ module bno085_uart_rx #(
         .packet_start            (packet_start),
         .packet_protocol         (packet_protocol),
         .packet_len              (packet_len),
+        .packet_capture_us       (packet_capture_us),
         .out_data                (out_data),
         .out_valid               (out_valid),
         .out_ready               (out_ready),

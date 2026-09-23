@@ -22,9 +22,16 @@ adapts the FIFO's registered read pulse to the deframer's valid/ready input. Its
 end-to-end tests drive real independent 3 Mbaud serial bits and cover escaped and
 consecutive packets, +100 ppm sender offset, mid-stream attachment, framing error,
 timeout, output backpressure, FIFO overflow, stale-byte flushing and recovery.
-The receive transport is complete through validated packet bytes; SHTP channel
-routing and SH-2 report decoding are next. Deliberately corrupting bridge data
-and disabling FIFO flushing both made the new tests fail; correct RTL was restored.
+The packet transport is complete through validated packet bytes. Deliberately
+corrupting bridge data and disabling FIFO flushing both made the tests fail;
+correct RTL was restored.
+`sh2_report_parser` and `bno085_imu_rx` now complete that receive-side decoding.
+They retain raw signed Q8/Q9/Q14 integers, quaternion accuracy Q12, SH-2 and SHTP
+sequences, packed status/delay, Base Timestamp/Rebase metadata, opening-boundary
+capture time, `has_sample`, and new-since-snapshot flags. Unknown or truncated
+records discard the entire staged packet. Six focused parser tests and two actual
+3 Mbaud serial-to-register tests pass. A real passing UART FST waveform and GTKWave
+layout live in `sim/waves/`; run `make view-uart-example` from `sim/`.
 FPGA startup requests accel/gyro 400 Hz and Rotation Vector 100 Hz, matching the
 inspected STM32 source, with 120 us TX byte spacing; physical rates need measurement.
 FPGA is the sole sensor host. It stores signed integers
@@ -119,9 +126,12 @@ module passes. Commits are co-authored with Claude per the user's setup.
 | `uart_rx_fifo` | 5/5 | complete 3 Mbaud serial-bit → received-byte → queued-byte integration |
 | `shtp_uart_deframer` | 10/10 | complete staged flag/escape decoder with validation, recovery and counters |
 | `bno085_uart_rx` | 6/6 | real serial input through UART/FIFO/bridge to validated packets; loss recovery |
+| `sh2_report_parser` | 6/6 | atomic SH-2 accel/gyro/rotation decode with timing, sequences and freshness |
+| `bno085_imu_rx` | 2/2 | exact 3 Mbaud serial packets update retained raw IMU report banks |
 | `top` | — | blinky bring-up: LD4 at 1 Hz, BTN0 resets. `uart_*` are not wired into it yet |
 
-Next for the IMU path: parse SHTP channels and the three SH-2 reports. BNO085 requirements are in
+Next for the IMU path: build the TX command transport, buffer-status flow control
+and startup FSM for the 400/400/100 Hz profile. BNO085 requirements are in
 BNO085_PLAN.md. Other planned blocks: `debounce` + foot
 switches, then `cycle_timer`
 (the 1 kHz global sample strobe), then SPI master + AS5047P readers.

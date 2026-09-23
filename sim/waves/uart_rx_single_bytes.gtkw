@@ -1,0 +1,18 @@
+[dumpfile] "waves/uart_rx_single_bytes.fst"
+[timestart] 0
+@28
+uart_rx.clk
+uart_rx.rst
+uart_rx.rx
+uart_rx.sync[1:0]
+uart_rx.rx_s
+uart_rx.armed
+uart_rx.busy
+@24
+uart_rx.clk_cnt[3:0]
+uart_rx.bit_idx[3:0]
+uart_rx.shreg[7:0]
+uart_rx.data[7:0]
+@28
+uart_rx.valid
+uart_rx.frame_error

@@ -22,6 +22,7 @@ module shtp_uart_deframer #(
 )(
     input  wire clk,
     input  wire rst,
+    input  wire [63:0] time_us,
 
     // Input byte stream. Transfer occurs when in_valid && in_ready.
     input  wire [7:0] in_data,
@@ -38,6 +39,7 @@ module shtp_uart_deframer #(
     output reg        packet_start,
     output reg  [7:0] packet_protocol,
     output reg  [$clog2(MAX_PACKET_BYTES+1)-1:0] packet_len,
+    output reg [63:0] packet_capture_us,
 
     // Valid/ready output stream. out_first/out_last accompany out_data.
     output wire [7:0] out_data,
@@ -80,6 +82,7 @@ module shtp_uart_deframer #(
     reg          escape_pending;
     reg          hunt_after_emit;
     reg [TW-1:0] timeout_count;
+    reg [63:0] opening_capture_us;
 
     // TODO 2 (implemented): Use valid/ready handshakes on both sides. A byte
     // moves only on a clock edge where both signals are high. During emission,
@@ -119,6 +122,8 @@ module shtp_uart_deframer #(
             packet_start               <= 1'b0;
             packet_protocol            <= 8'h00;
             packet_len                 <= {CW{1'b0}};
+            packet_capture_us          <= 64'd0;
+            opening_capture_us         <= 64'd0;
             invalid_protocol_count     <= 32'd0;
             escape_error_count         <= 32'd0;
             length_error_count         <= 32'd0;
@@ -182,13 +187,17 @@ module shtp_uart_deframer #(
                 ST_HUNT: begin
                     // Ignore arbitrary bytes until an unambiguous boundary.
                     if (input_fire && (in_data == FLAG))
+                    begin
+                        opening_capture_us <= time_us;
                         state <= ST_PROTOCOL;
+                    end
                 end
 
                 ST_PROTOCOL: begin
                     if (input_fire) begin
                         if (in_data == FLAG) begin
                             // Repeated flags are harmless empty boundaries.
+                            opening_capture_us <= time_us;
                             state <= ST_PROTOCOL;
                         end else if ((in_data == 8'h00) || (in_data == 8'h01)) begin
                             packet_protocol <= in_data;
@@ -217,6 +226,7 @@ module shtp_uart_deframer #(
                                 // header, so framing and the size bound suffice.
                                 packet_len   <= collect_count;
                                 packet_start <= 1'b1;
+                                packet_capture_us <= opening_capture_us;
                                 emit_index   <= {AW{1'b0}};
                                 hunt_after_emit <= 1'b0;
                                 state        <= (collect_count == 0)
@@ -233,6 +243,7 @@ module shtp_uart_deframer #(
                             end else begin
                                 packet_len   <= collect_count;
                                 packet_start <= 1'b1;
+                                packet_capture_us <= opening_capture_us;
                                 emit_index   <= {AW{1'b0}};
                                 hunt_after_emit <= 1'b0;
                                 state        <= ST_EMIT_START;

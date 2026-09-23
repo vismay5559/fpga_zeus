@@ -43,6 +43,8 @@ scripts/      Vivado build and programming scripts (Tcl, no GUI needed)
 | [`uart_rx_fifo`](rtl/uart_rx_fifo.v) | done | connects UART RX bytes to FIFO; tested with independent 3 Mbaud input |
 | [`shtp_uart_deframer`](rtl/shtp_uart_deframer.v) | done | stages, unescapes and validates complete UART-SHTP packets |
 | [`bno085_uart_rx`](rtl/bno085_uart_rx.v) | done | complete serial RX → FIFO → validated SHTP packet integration and recovery |
+| [`sh2_report_parser`](rtl/sh2_report_parser.v) | done | atomically decodes accel Q8, gyro Q9 and Rotation Vector Q14 reports |
+| [`bno085_imu_rx`](rtl/bno085_imu_rx.v) | done | real 3 Mbaud RX through retained raw IMU registers, timestamps and freshness |
 
 The [FIFO walkthrough](sim/FIFO_EXERCISE.md) explains its tests and RTL from basics.
 IMU requirements and STM32 comparison: [BNO085 plan](BNO085_PLAN.md).
@@ -63,6 +65,9 @@ make TOP=uart_tx WAVES=1     # compile with Icarus, run the cocotb tests, record
 make TOP=uart_tx view        # open the waveform in GTKWave
 make TOP=uart_tx COCOTB_TESTCASE=single_bytes   # run one test
 make TOP=bno085_uart_rx                         # full BNO085 receive transport
+make TOP=sh2_report_parser                      # focused SH-2 report tests
+make TOP=bno085_imu_rx                          # serial wire through final IMU registers
+make view-uart-example                          # checked-in passing UART waveform
 
 verilator --lint-only -Wall rtl/uart_tx.v       # from the project root
 ```

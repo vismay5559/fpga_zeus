@@ -4,7 +4,9 @@ Updated 2026-09-22. FPGA-only implementation order: FIFO, command transport and
 deframer exercises, report decoder, snapshot integration. The UART receiver,
 synchronous FIFO, SHTP deframer and complete serial-to-validated-packet receive
 integration are implemented and tested. Acceptance tests below for command
-sending, SH-2 decoding and snapshots remain requirements for later hardware.
+sending and startup remain requirements for later hardware. The SH-2 receive
+parser now decodes calibrated acceleration, calibrated gyro and Rotation Vector,
+including batch timing metadata, sequence diagnostics and snapshot freshness.
 
 ## Reports and STM32 baseline
 

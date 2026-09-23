@@ -165,6 +165,27 @@ On `frame_error` or FIFO `overflow`, the wrapper:
 A packet already fully staged and validated before a later input error is
 allowed to finish its output. The deframer then hunts for a fresh boundary.
 
+### `sh2_report_parser.v`
+
+This parser stages a second copy of the validated packet and scans every SH-2
+record before changing live sensor registers. It accepts channel 3 records for
+calibrated acceleration (`0x01`), calibrated gyro (`0x02`), Rotation Vector
+(`0x05`), Base Timestamp (`0xFB`) and Timestamp Rebase (`0xFA`). An unknown or
+truncated record rejects the entire packet, so values from its earlier records
+cannot leak into the live banks.
+
+The report banks retain raw signed integers, Q point, status, packed delay,
+SH-2 sequence, SHTP sequence, opening-boundary capture time and batch timestamp
+metadata. `has_sample` stays true after the first report. `new` stays true until
+the 1 kHz snapshot consumes it; if snapshot and report commit share an edge, the
+new report remains pending for the following snapshot.
+
+### `bno085_imu_rx.v`
+
+This thin top level connects `bno085_uart_rx` directly to `sh2_report_parser`.
+It is the complete receive data path from one asynchronous pin to acceleration,
+gyro and quaternion registers. The BNO085 command transmitter is still separate.
+
 ## 4. Verilog syntax used here
 
 `wire` describes a connection or continuously calculated value. `reg` stores a
@@ -307,6 +328,23 @@ serial bits, and the scoreboard observes only validated packet output.
 The smaller simulation parameters do not weaken the rules. They make timeout and
 overflow conditions practical to reach in a short simulation.
 
+### `test_sh2_report_parser.py`
+
+- decodes signed edge values and every Q point without floating point;
+- checks status, 14-bit delay, capture time, Base Timestamp and Rebase metadata;
+- proves silence retains values while snapshot clears freshness;
+- covers report commit on the same edge as a snapshot;
+- distinguishes normal sequence rollover from real gaps;
+- proves an unknown or truncated record cannot partially update registers;
+- rejects wrong channels, stream markers and SHTP header lengths.
+
+### `test_bno085_imu_rx.py`
+
+Python sends actual escaped 3 Mbaud serial frames through every receive block and
+checks the final acceleration, gyro and quaternion register banks. A second test
+consumes freshness with a snapshot and confirms a later packet refreshes only the
+report type it contains.
+
 ## 7. Running the tests
 
 ```bash
@@ -314,17 +352,18 @@ source ~/fpga/venv/bin/activate
 cd ~/fpga/biped-fpga/sim
 
 make TOP=bno085_uart_rx
+make TOP=sh2_report_parser
+make TOP=bno085_imu_rx
 make TOP=shtp_uart_deframer
 make TOP=uart_rx_fifo
 make test-uart-bno085
 ```
 
-To record and view the integration waveform:
+A small waveform from the passing `uart_rx.single_bytes` test is checked into
+`sim/waves/`. Open it without rerunning simulation:
 
 ```bash
-rm -rf sim_build/bno085_uart_rx_c33_d4_m32_t450
-make TOP=bno085_uart_rx WAVES=1
-make TOP=bno085_uart_rx view
+make view-uart-example
 ```
 
 From the repository root, lint the integrated receive hierarchy with:
@@ -332,23 +371,18 @@ From the repository root, lint the integrated receive hierarchy with:
 ```bash
 verilator --lint-only -Wall \
   rtl/fifo_sync.v rtl/uart_rx.v rtl/uart_rx_fifo.v \
-  rtl/shtp_uart_deframer.v rtl/bno085_uart_rx.v \
-  --top-module bno085_uart_rx
+  rtl/shtp_uart_deframer.v rtl/bno085_uart_rx.v rtl/sh2_report_parser.v \
+  rtl/bno085_imu_rx.v --top-module bno085_imu_rx
 ```
 
 ## 8. What remains after this receive transport
 
-The FPGA can now turn the BNO085 RX wire into validated SHTP packet bytes in
-simulation. It does not yet interpret SH-2 sensor reports or configure the IMU.
-The remaining BNO085 work is:
+The FPGA can now turn the BNO085 RX wire into retained raw SH-2 sensor registers
+in simulation. The remaining BNO085 work is:
 
-1. route SHTP channels and track per-channel sequence numbers;
-2. decode calibrated acceleration Q8, calibrated gyro Q9 and Rotation Vector Q14;
-3. attach timestamps, status, freshness and report-sequence metadata;
-4. construct startup Set Feature commands for 400/400/100 Hz;
-5. implement protocol-0 buffer-status flow control and the 120 us TX byte gap;
-6. detect confirmed sensor resets and reconfigure automatically;
-7. replay real captured BNO085 traffic;
-8. connect registers to the 1 kHz snapshot and Pi interface;
-9. synthesize, constrain pins and verify rates on physical hardware.
-
+1. construct startup Set Feature commands for 400/400/100 Hz;
+2. implement protocol-0 buffer-status flow control and the 120 us TX byte gap;
+3. detect confirmed sensor resets and reconfigure automatically;
+4. replay real captured BNO085 traffic;
+5. connect the report banks to the full 1 kHz snapshot and Pi interface;
+6. synthesize, constrain pins and verify rates on physical hardware.

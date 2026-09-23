@@ -38,8 +38,9 @@ FPGA startup requests acceleration/gyro at 400 Hz, Rotation Vector at 100 Hz, wi
       resynchronization, timeout/backpressure/error tests (10/10)
 - [x] End-to-end BNO085 RX transport: exact 3 Mbaud serial input → UART RX →
       FIFO/holding bridge → validated SHTP packets; overflow/error flush recovery
-- [ ] SHTP header parser (length, channel, sequence number)
-- [ ] Report parsers: accelerometer, gyro, rotation vector → Q-format registers + timestamp
+- [x] SHTP header parser: length/channel/sequence validation and gap counters
+- [x] Report parser: accelerometer Q8, gyro Q9, Rotation Vector Q14/Q12 accuracy,
+      base/rebase timing metadata, capture timestamp and snapshot freshness
 - [ ] Startup FSM + command ROM: reset, wait for advertisement, Set Feature per report
 - [ ] FPGA startup: wait for advertisement, configure the 400/400/100 profile and confirm intervals
 - [ ] Parameterized TX byte gap, buffer-status control, timestamps/freshness and error counters/tests per BNO085_PLAN

@@ -47,6 +47,7 @@ def uart_message(protocol, content):
 async def setup(dut):
     dut.in_data.value = 0
     dut.in_valid.value = 0
+    dut.time_us.value = 0
     dut.stream_abort.value = 0
     dut.out_ready.value = 1
     dut.rst.value = 1
