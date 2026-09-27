@@ -13,3 +13,6 @@ Claude-*.md
 !sim/waves/*.fst
 
 .venv-pi/
+
+# Vivado clock-routing debug artifact
+clockInfo.txt
