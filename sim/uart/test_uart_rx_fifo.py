@@ -1,4 +1,4 @@
-"""Integration specification for rtl/uart_rx_fifo.v.
+"""Integration specification for rtl/uart/uart_rx_fifo.v.
 
 This test does not place bytes directly into the FIFO. Python behaves like the
 BNO085 and drives the single `rx` wire one serial bit at a time at exactly

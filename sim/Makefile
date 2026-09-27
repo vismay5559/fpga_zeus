@@ -8,7 +8,12 @@ TOPLEVEL_LANG ?= verilog
 # ROS (sourced in ~/.bashrc) exposes pytest plugins that break cocotb; skip them
 export PYTEST_DISABLE_PLUGIN_AUTOLOAD := 1
 
-VERILOG_SOURCES += $(wildcard $(PWD)/../rtl/*.v)
+SIM_ROOT := $(abspath $(dir $(firstword $(MAKEFILE_LIST))))
+REPO_ROOT := $(abspath $(SIM_ROOT)/..)
+VERILOG_SOURCES += $(sort $(wildcard $(REPO_ROOT)/rtl/*/*.v))
+empty :=
+space := $(empty) $(empty)
+export PYTHONPATH := $(REPO_ROOT):$(subst $(space),:,$(wildcard $(SIM_ROOT)/*/)):$(PYTHONPATH)
 COCOTB_TOPLEVEL = $(TOP)
 COCOTB_TEST_MODULES = test_$(TOP)
 SIM_BUILD = sim_build/$(TOP)

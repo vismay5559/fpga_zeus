@@ -1,4 +1,4 @@
-"""Executable specification for rtl/fifo_sync.v.
+"""Executable specification for rtl/common/fifo_sync.v.
 
 Parameters: WIDTH >= 1 (default 8), DEPTH >= 2 (default 16); arbitrary DEPTH.
 Ports:

@@ -1,0 +1,3 @@
+# Only the hardware reader needs these; fpga_protocol uses the standard library.
+gpiod>=2.2,<3
+spidev>=3.6,<4

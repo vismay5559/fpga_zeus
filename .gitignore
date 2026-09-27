@@ -1,7 +1,7 @@
 build/
 sim/sim_build/
 sim/results.xml
-sim/__pycache__/
+__pycache__/
 *.jou
 *.log
 *.str
@@ -11,3 +11,5 @@ sim/__pycache__/
 Claude-*.md
 *.fst
 !sim/waves/*.fst
+
+.venv-pi/

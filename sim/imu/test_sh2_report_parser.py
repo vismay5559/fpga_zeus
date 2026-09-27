@@ -1,4 +1,4 @@
-"""Executable specification for rtl/sh2_report_parser.v.
+"""Executable specification for rtl/imu/sh2_report_parser.v.
 
 The test supplies complete packets exactly as shtp_uart_deframer emits them:
 the four-byte SHTP header followed by SH-2 records. The parser must stage and

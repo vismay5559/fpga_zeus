@@ -1,4 +1,4 @@
-"""End-to-end receive specification for rtl/bno085_uart_rx.v.
+"""End-to-end receive specification for rtl/imu/bno085_uart_rx.v.
 
 Python behaves like the BNO085 electrical UART transmitter. It drives one RX
 wire with start, eight LSB-first data and stop bits at an independent exact

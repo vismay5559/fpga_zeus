@@ -25,29 +25,50 @@ decisions already made, working conventions, and environment quirks.
 ## Layout
 
 ```
-rtl/          Verilog modules
-sim/          cocotb testbenches (the spec for each module) + Makefile
+rtl/          common/, uart/, imu/, pi_link/, spi/, can/, gpio/, top/
+sim/          matching interface test folders + shared Makefile
 constraints/  Arty pin assignments (.xdc)
-scripts/      Vivado build and programming scripts (Tcl, no GUI needed)
+scripts/      build/program Tcl and regression/mutation runners
+pi/           packet decoder and Raspberry Pi SPI reader
+docs/         protocol, team integration, and hardware bring-up guides
 ```
+
+## Pi link and team organization
+
+- [Team ownership and folder workflow](docs/TEAM_WORKFLOW.md)
+- [Recorded simulation and build checks](docs/PI_LINK_VERIFICATION.md)
+- [Exact 640-byte FPGA-to-Pi protocol](docs/PI_LINK_PROTOCOL.md)
+- [Build, program and test on Arty A7-100T](docs/ARTY_A7_BRINGUP.md)
+
+The Pi-facing SPI slave is implemented for reading sensor snapshots. Your teammate
+owns the separate encoder SPI master. The standalone Pi demo sends TEST_MODE
+packets with sensor validity clear; real sensor payload integration and the
+Pi-to-FPGA motor-command path remain unfinished. The new ten-actuator integer
+protocol is not byte-compatible with the STM32 eight-actuator float protocol.
+
+Run all tests: `python scripts/run_tests.py` after activating the simulation venv.
+Run just this link: `make -C sim TOP=pi_link`.
 
 ## Modules
 
 | Module | State | What it does |
 |---|---|---|
-| [`tick_gen`](rtl/tick_gen.v) | done | one-cycle pulse every N clocks; baud and cycle timing |
-| [`uart_tx`](rtl/uart_tx.v) | done | 8N1 transmitter, LSB first, valid/ready handshake |
-| [`top`](rtl/top.v) | done | board bring-up blinky: LD4 at 1 Hz, BTN0 resets |
-| [`uart_rx`](rtl/uart_rx.v) | done | receiver: 2-flop synchronizer, mid-bit sampling, glitch rejection, framing errors |
-| [`fifo_sync`](rtl/fifo_sync.v) | done | parameterized synchronous byte queue with overflow/underflow diagnostics |
-| [`uart_rx_fifo`](rtl/uart_rx_fifo.v) | done | connects UART RX bytes to FIFO; tested with independent 3 Mbaud input |
-| [`shtp_uart_deframer`](rtl/shtp_uart_deframer.v) | done | stages, unescapes and validates complete UART-SHTP packets |
-| [`bno085_uart_rx`](rtl/bno085_uart_rx.v) | done | complete serial RX → FIFO → validated SHTP packet integration and recovery |
-| [`sh2_report_parser`](rtl/sh2_report_parser.v) | done | atomically decodes accel Q8, gyro Q9 and Rotation Vector Q14 reports |
-| [`bno085_imu_rx`](rtl/bno085_imu_rx.v) | done | real 3 Mbaud RX through retained raw IMU registers, timestamps and freshness |
-| [`bno085_uart_packet_tx`](rtl/bno085_uart_packet_tx.v) | done | SHTP framing/escaping and a parameterized gap after every physical UART byte |
-| [`bno085_startup_controller`](rtl/bno085_startup_controller.v) | done | BSQ/BSN flow control, exact 400/400/100 commands, confirmation and reset recovery |
-| [`bno085_imu`](rtl/bno085_imu.v) | done | complete bidirectional sensor host from RX/TX pins to configured IMU registers |
+| [`cycle_timer`](rtl/common/cycle_timer.v) | simulation-tested | microsecond timestamp and 1 kHz sample strobe |
+| [`pi_link`](rtl/pi_link/pi_link.v) | simulation-tested | atomic snapshot/CRC and read-only Pi SPI slave |
+| [`pi_link_demo_top`](rtl/top/pi_link_demo_top.v) | bench demo | dedicated Arty top with invalid sensor payload |
+| [`tick_gen`](rtl/common/tick_gen.v) | done | one-cycle pulse every N clocks; baud and cycle timing |
+| [`uart_tx`](rtl/uart/uart_tx.v) | done | 8N1 transmitter, LSB first, valid/ready handshake |
+| [`top`](rtl/top/top.v) | done | board bring-up blinky: LD4 toggles once per second, BTN0 resets |
+| [`uart_rx`](rtl/uart/uart_rx.v) | done | receiver: 2-flop synchronizer, mid-bit sampling, glitch rejection, framing errors |
+| [`fifo_sync`](rtl/common/fifo_sync.v) | done | parameterized synchronous byte queue with overflow/underflow diagnostics |
+| [`uart_rx_fifo`](rtl/uart/uart_rx_fifo.v) | done | connects UART RX bytes to FIFO; tested with independent 3 Mbaud input |
+| [`shtp_uart_deframer`](rtl/imu/shtp_uart_deframer.v) | done | stages, unescapes and validates complete UART-SHTP packets |
+| [`bno085_uart_rx`](rtl/imu/bno085_uart_rx.v) | done | complete serial RX → FIFO → validated SHTP packet integration and recovery |
+| [`sh2_report_parser`](rtl/imu/sh2_report_parser.v) | done | atomically decodes accel Q8, gyro Q9 and Rotation Vector Q14 reports |
+| [`bno085_imu_rx`](rtl/imu/bno085_imu_rx.v) | done | real 3 Mbaud RX through retained raw IMU registers, timestamps and freshness |
+| [`bno085_uart_packet_tx`](rtl/imu/bno085_uart_packet_tx.v) | done | SHTP framing/escaping and a parameterized gap after every physical UART byte |
+| [`bno085_startup_controller`](rtl/imu/bno085_startup_controller.v) | done | BSQ/BSN flow control, exact 400/400/100 commands, confirmation and reset recovery |
+| [`bno085_imu`](rtl/imu/bno085_imu.v) | done | complete bidirectional sensor host from RX/TX pins to configured IMU registers |
 
 The [FIFO walkthrough](sim/FIFO_EXERCISE.md) explains its tests and RTL from basics.
 IMU requirements and STM32 comparison: [BNO085 plan](BNO085_PLAN.md).
@@ -76,7 +97,7 @@ make TOP=bno085_startup_controller              # command and flow-control state
 make TOP=bno085_imu                             # complete bidirectional host
 make view-uart-example                          # checked-in passing UART waveform
 
-verilator --lint-only -Wall rtl/uart_tx.v       # from the project root
+verilator --lint-only -Wall rtl/uart/uart_tx.v       # from the project root
 ```
 
 Simulation parameters are shrunk so tests run fast: `CLKS_PER_BIT=16` for `uart_tx`,
@@ -85,8 +106,8 @@ Simulation parameters are shrunk so tests run fast: `CLKS_PER_BIT=16` for `uart_
 ## Building for the board
 
 ```bash
-vivado -mode batch -source scripts/build.tcl    # → build/top.bit
-grep -A3 WNS build/timing.rpt                   # worst slack must not be negative
+vivado -mode batch -source scripts/build.tcl    # → build/top/top.bit
+grep -A3 WNS build/top/timing.rpt                   # worst slack must not be negative
 vivado -mode batch -source scripts/program.tcl  # flash over USB (lost on power-off)
 ```
 

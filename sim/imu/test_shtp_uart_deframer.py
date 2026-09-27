@@ -1,4 +1,4 @@
-"""Executable specification for rtl/shtp_uart_deframer.v.
+"""Executable specification for rtl/imu/shtp_uart_deframer.v.
 
 Python supplies already-decoded UART bytes through a valid/ready interface.
 This isolates SHTP framing from the physical UART receiver; the next integration

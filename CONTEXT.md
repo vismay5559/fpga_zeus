@@ -80,8 +80,9 @@ for the Oct 15 goal.
   Needs GHDL for simulation; Vivado handles mixed-language synthesis. Do not suggest
   external CAN controller chips (e.g. MCP2518FD) — that was considered and rejected.
 - **BNO085 runs UART-SHTP, not UART-RVC.**
-- **Pi link is SPI with the FPGA as slave**, plus a data-ready line, keeping the frame
-  layout compatible with what the STM32 sends today so Pi-side code barely changes.
+- **Pi link is SPI with the FPGA as slave**, plus a data-ready line, using the new ZFP1 ten-actuator integer snapshot. The STM32 v8 layout is
+  eight-actuator/float/estimator-output and is not wire compatible. Pi adaptation
+  and estimator execution are required.
 - **No soft core for now.** The Pi configures peripherals at startup through the
   register map; the FPGA does per-cycle work in pure hardware.
 
@@ -90,13 +91,13 @@ for the Oct 15 goal.
 **Test-first, and the human writes the RTL.** The user is a robotics engineer who is new
 to Verilog and is deliberately learning it. The established loop is:
 
-1. Claude/agent writes the cocotb testbench in `sim/test_<module>.py`. **The testbench is
+1. Claude/agent writes the cocotb testbench in `sim/<interface>/test_<module>.py`. **The testbench is
    the spec** — it opens with a docstring giving the exact port list and rules.
-2. Agent writes `rtl/<module>.v` as a **skeleton**: ports, parameters and registers
+2. Agent writes `rtl/<interface>/<module>.v` as a **skeleton**: ports, parameters and registers
    declared, with numbered `// TODO n:` comments describing each piece of behavior.
 3. The user fills in the TODOs, runs the tests, and asks for review.
-4. **Only fill in TODOs when the user explicitly asks for it** (they have, for
-   `uart_tx` and `uart_rx`). When you do, **keep the TODO comments in place** — the user
+4. **Only fill in TODOs when the user explicitly asks for it** (later requests authorized complete
+   FIFO, UART/BNO085 and Pi-link implementations). When you do, **keep the TODO comments in place** — the user
    asked for this specifically, so the file reads as explanation plus implementation.
 5. Nothing is flashed to hardware before it passes in simulation.
 
@@ -137,7 +138,7 @@ module passes. Commits are co-authored with Claude per the user's setup.
 | `bno085_uart_packet_tx` | 4/4 | framing, escaping, per-channel sequences and measured inter-byte gaps |
 | `bno085_startup_controller` | 4/4 | BSN gating, exact profile, confirmation retry and reset reconfiguration |
 | `bno085_imu` | 1/1 | physical bidirectional wire integration, report fanout and reset invalidation |
-| `top` | — | blinky bring-up: LD4 at 1 Hz, BTN0 resets. `uart_*` are not wired into it yet |
+| `top` | — | blinky bring-up: LD4 toggles once per second, BTN0 resets. `uart_*` are not wired into it yet |
 
 Next for the IMU path: replay a real BNO085/STM32 capture, connect `bno085_imu`
 to board pins and the 1 kHz/Pi register path, then measure sustained 400/400/100
@@ -190,7 +191,7 @@ cd sim
 make TOP=uart_rx WAVES=1                          # compile + run tests + record waves
 make TOP=uart_rx view                             # GTKWave (env -i workaround)
 make TOP=uart_rx COCOTB_TESTCASE=single_bytes     # one test
-verilator --lint-only -Wall rtl/uart_rx.v         # from repo root
+verilator --lint-only -Wall rtl/uart/uart_rx.v         # from repo root
 ```
 
 ## Not in the repo, deliberately
@@ -198,3 +199,22 @@ verilator --lint-only -Wall rtl/uart_rx.v         # from repo root
 The exported transcript of the original setup conversation (`Claude-*.md`, gitignored)
 contains the laptop's MAC address, which is the Vivado license host ID, plus the
 hostname. Keep it out of anything public.
+
+## 2026-09-27 Pi-link and team update
+
+User confirmed ten actuators and that teammate owns encoder SPI master only.
+RTL/tests now live in common/uart/imu/pi_link/spi/can/gpio/top groups. Shared
+Makefile and Vivado scripts discover one-level interface directories. Root docs
+remain for continuity. See docs/TEAM_WORKFLOW.md for ownership and handshakes.
+
+Pi link implements 640-byte ZFP1 v1 snapshot framing/CRC, a read-only SPI mode0
+slave, partial-read rewind, single in-flight frame and counted dropped snapshots.
+cycle_timer provides 1 kHz sample + 64-bit microseconds. Pi decoder/reader live in
+pi/. Packet fields/offsets are in docs/PI_LINK_PROTOCOL.md. pi_link_demo_top sends
+invalid sensor records with TEST_MODE set; production sensor payload mapping,
+Pi InEKF adapter and motor-command/gains/watchdog integration remain.
+
+Build default blinky: scripts/build.tcl -> build/top/top.bit. Demo: pass
+-tclargs pi_link_demo_top constraints/arty_a7_100_pi_demo.xdc. Programming script
+accepts the explicit bitstream path. See docs/ARTY_A7_BRINGUP.md for wiring and
+commands. No physical programming has been performed by this task.

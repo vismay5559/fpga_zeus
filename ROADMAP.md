@@ -14,7 +14,7 @@ Workflow: the test file is the spec, you write the RTL, then review.
 - [x] `uart_rx_fifo`: serial RX → FIFO integration, 5/5 tests at independent 3 Mbaud
 - [x] UART RX timing: 100 MHz/divider 33 versus independent 3 Mbaud and +/-100 ppm sender, all bytes/four phases
 - [ ] `debounce` + `foot_switches`: 4 inputs → synced, debounced, change timestamp
-- [ ] `cycle_timer`: 1 kHz `sample` strobe + free-running µs timestamp counter
+- [x] `cycle_timer`: 1 kHz `sample` strobe + free-running µs timestamp counter
 - Done when: TX→FIFO→RX loopback is clean at 32 clks/bit; switch tests cover bounce and glitches.
 
 ## Week 2: Sep 24–30 · CDC + AS5047P encoders
@@ -68,3 +68,17 @@ FPGA startup requests acceleration/gyro at 400 Hz, Rotation Vector at 100 Hz, wi
 - ISO1042 breakouts, 120 Ω terminations, twisted pair, Pmod/breadboard adapter
 - AS5047P cable lengths → RS422 drivers if they run long next to motor leads
 - Arty I/O is 3.3 V only; check every part's voltage levels
+
+## Pi-link implementation update (2026-09-27)
+
+- [x] Ten-actuator ZFP1 schema and strict Python decoder; integer IMU + metadata.
+- [x] Immutable packet capture, CRC, backpressure/drop counters and abort rewind.
+- [x] Read-only SPI slave and physical-wire cocotb integration.
+- [x] Standalone Arty Pi-link demo top, XDC and Pi bench reader.
+- [ ] Populate production packet from actual IMU/CAN/encoder/switch modules.
+- [ ] Pi-side estimator/state adapter, command/gains input and watchdog integration.
+- [ ] Physical-board validation and sustained Pi throughput measurement.
+
+The earlier STM32-compatible-frame goal is superseded by docs/PI_LINK_PROTOCOL.md:
+current STM32 v8 has eight joints and estimator floats; this project retains ten
+and Pi-side scaling/fusion. Encoder SPI master remains teammate-owned.

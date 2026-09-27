@@ -1,5 +1,5 @@
 """
-Spec for rtl/uart_rx.v  (8N1, LSB first, idle high)
+Spec for rtl/uart/uart_rx.v  (8N1, LSB first, idle high)
 
 module uart_rx #(parameter integer CLKS_PER_BIT = 33) (
     input  wire       clk,

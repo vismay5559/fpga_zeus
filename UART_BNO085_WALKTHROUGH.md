@@ -70,7 +70,7 @@ validated packet stream
 future SH-2 parser    will extract acceleration, gyro and quaternion reports
 ```
 
-[`bno085_uart_rx`](rtl/bno085_uart_rx.v) instantiates and connects the existing
+[`bno085_uart_rx`](rtl/imu/bno085_uart_rx.v) instantiates and connects the existing
 receiver, FIFO and deframer. This makes the path from the physical serial input
 to validated packet bytes complete.
 
@@ -449,10 +449,10 @@ From the repository root, lint the complete host hierarchy with:
 
 ```bash
 verilator --lint-only -Wall \
-  rtl/fifo_sync.v rtl/uart_rx.v rtl/uart_rx_fifo.v rtl/uart_tx.v \
-  rtl/shtp_uart_deframer.v rtl/bno085_uart_rx.v rtl/sh2_report_parser.v \
-  rtl/bno085_uart_packet_tx.v rtl/bno085_startup_controller.v \
-  rtl/bno085_imu.v --top-module bno085_imu
+  rtl/common/fifo_sync.v rtl/uart/uart_rx.v rtl/uart/uart_rx_fifo.v rtl/uart/uart_tx.v \
+  rtl/imu/shtp_uart_deframer.v rtl/imu/bno085_uart_rx.v rtl/imu/sh2_report_parser.v \
+  rtl/imu/bno085_uart_packet_tx.v rtl/imu/bno085_startup_controller.v \
+  rtl/imu/bno085_imu.v --top-module bno085_imu
 ```
 
 ## 8. What remains after the simulated end-to-end host

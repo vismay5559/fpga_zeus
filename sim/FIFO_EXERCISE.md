@@ -6,7 +6,7 @@ marks the oldest unread word. `level` counts the words waiting. Each bookmark
 wraps to zero after the last slot.
 
 Read the contract in [test_fifo_sync.py](test_fifo_sync.py), then follow the six
-numbered TODO explanations in [fifo_sync.v](../rtl/fifo_sync.v). The implementation
+numbered TODO explanations in [fifo_sync.v](../rtl/common/fifo_sync.v). The implementation
 is now complete; each TODO remains immediately above the code that implements it.
 
 Later, UART's byte-valid pulse will request a FIFO write; the packet decoder will
@@ -70,7 +70,7 @@ make TOP=fifo_sync COCOTB_TESTCASE=simultaneous_at_full
 ```
 
 Lint from the repository root:
-`verilator --lint-only -Wall rtl/fifo_sync.v`.
+`verilator --lint-only -Wall rtl/common/fifo_sync.v`.
 
 ## Verification performed on 2026-09-22
 
