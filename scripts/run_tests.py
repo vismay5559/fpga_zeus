@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TOPS = ['tick_gen','cycle_timer','uart_tx','uart_rx','fifo_sync','uart_rx_fifo',
         'shtp_uart_deframer','bno085_uart_rx','sh2_report_parser','bno085_imu_rx',
         'bno085_uart_packet_tx','bno085_startup_controller','bno085_imu',
-        'pi_snapshot','pi_link']
+        'pi_snapshot','pi_link','foot_switches','pi_link_demo_top']
 subprocess.run([sys.executable,'-m','unittest','discover','-s','tests','-v'],cwd=ROOT,check=True)
 logs=ROOT/'build'/'regression';logs.mkdir(parents=True,exist_ok=True)
 for top in TOPS + ['test-uart-bno085','test-bno-tx-gaps']:

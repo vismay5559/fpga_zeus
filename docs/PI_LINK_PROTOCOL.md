@@ -123,6 +123,8 @@ Contacts: offset0 uint8 debounced switch bits (left toe/heel, right toe/heel);
 1 uint8 derived foot bits (left bit0, right bit1); 2 uint16 reserved;
 4 uint16[2] stable ticks left/right; 8 uint64 timestamp_us of most recent switch
 change. Header bit2 indicates whether the GPIO subsystem is present; health describes faults.
+The Arty Pi demo now populates this record from synchronized, debounced foot
+switches; its other sensor groups remain invalid/test-mode.
 
 ## Diagnostics
 

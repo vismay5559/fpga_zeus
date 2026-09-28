@@ -142,9 +142,8 @@ module passes. Commits are co-authored with Claude per the user's setup.
 
 Next for the IMU path: replay a real BNO085/STM32 capture, connect `bno085_imu`
 to board pins and the 1 kHz/Pi register path, then measure sustained 400/400/100
-delivery on hardware. BNO085 requirements are in BNO085_PLAN.md. Other planned blocks: `debounce` + foot
-switches, then `cycle_timer`
-(the 1 kHz global sample strobe), then SPI master + AS5047P readers.
+delivery on hardware. BNO085 requirements are in BNO085_PLAN.md. Other planned blocks: teammate-owned encoder SPI master + AS5047P readers,
+CAN FD, production snapshot integration and motor safety.
 
 ### Conventions in the RTL
 
@@ -218,3 +217,15 @@ Build default blinky: scripts/build.tcl -> build/top/top.bit. Demo: pass
 -tclargs pi_link_demo_top constraints/arty_a7_100_pi_demo.xdc. Programming script
 accepts the explicit bitstream path. See docs/ARTY_A7_BRINGUP.md for wiring and
 commands. No physical programming has been performed by this task.
+
+## 2026-09-28 foot-switch update
+
+`rtl/gpio/foot_switches.v` implements four active-low contacts with 2-flop input
+synchronizers and 1 kHz-sampled independent 3-tick make / 8-tick break debounce.
+Those thresholds and bit order match `stm32_zeuss` contact.c at commit 8abfe78.
+Outputs: debounced switch/foot bits, per-switch confirmation timestamps, latest
+change timestamp, event pulses, and per-foot saturating stable age. Four focused
+cocotb tests pass. The Arty Pi demo now uses JD1-4 for switch-to-ground inputs
+with requested pull-ups, LED1/LED2 for left/right feet, and packs live contacts
+into bytes464..479 of the ZFP1 snapshot. Bit-level top/Pi decoder integration
+passes; see docs/FOOT_SWITCHES.md. Production top integration remains.

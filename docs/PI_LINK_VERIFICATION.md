@@ -32,3 +32,21 @@ The source, tests, constraints and build instructions are versioned. No board wa
 programmed in this task, and sustained Pi throughput is not hardware-verified.
 The STM32-compatible policy adapter, live sensor payload integration, command
 receiver and hardware motor watchdog are still future integration work.
+
+## 2026-09-28 foot-contact extension
+
+The demo now includes live foot switches; its 2026-09-27 utilization figures above
+apply only to the earlier all-invalid snapshot. The complete regression passed:
+78 cocotb tests and 4 Pi protocol unit tests. This includes four focused GPIO
+tests and one board-top switch-to-SPI-to-Pi decoder test. A scratch reference
+passed; changing the make threshold, break threshold, or toe/heel OR separately
+made the GPIO tests fail. Scratch RTL was deleted after each run.
+
+Vivado 2026.1 routed the updated `pi_link_demo_top` for xc7a100tcsg324-1 at
+100 MHz: setup WNS +3.097 ns, hold WHS +0.053 ns, zero failing endpoints, zero
+DRC violations. The routed demo uses 292 LUTs and 586 flip-flops. Its switch
+inputs D4/D3/F4/F3 have `PULLUP` in the IO report. The bitstream is at
+`build/pi_link_demo_top/pi_link_demo_top.bit`. These are demo resources with
+IMU/encoder/CAN data still constant; no switch hardware was exercised here.
+
+Reproduce the new fault check with `python scripts/check_foot_mutations.py`.

@@ -11,14 +11,14 @@ unique; use one feature branch per person, never develop together on main.
 | `rtl/pi_link`, `sim/pi_link` | Snapshot framing, CRC, Pi-facing SPI slave |
 | `rtl/spi`, `sim/spi` | Teammate-owned encoder SPI master and AS5047P readers |
 | `rtl/can`, `sim/can` | CAN FD integration and actuator records |
-| `rtl/gpio`, `sim/gpio` | Foot-switch synchronization/debounce |
+| `rtl/gpio`, `sim/gpio` | Four implemented foot-switch inputs and tests |
 | `rtl/top` | Board tops connecting tested modules |
 | `pi`, `tests` | Pi decoder/reader and host unit tests |
 | `constraints` | Reviewed board pin assignments and timing constraints |
 | `docs` | Shared protocol, ownership, and hardware procedures |
 
 The encoder SPI master and Pi SPI slave are DIFFERENT peripherals. The FPGA
-clocks the encoders; the Pi clocks the FPGA. The new Pi demo allocates JA1-4;
+clocks the encoders; the Pi clocks the FPGA. The Pi demo allocates JA1-4 and four foot-switch inputs on JD1-4;
 coordinate before putting encoder signals on that connector. Production pin
 allocation is a team integration decision, not inherited silently from the demo.
 The STM32 harness uses two two-device encoder daisy chains, not four individual
@@ -51,7 +51,8 @@ Construct it combinationally from same-clock retained sensor registers. The link
 captures it on `sample_accepted`. Connect that exact signal to the IMU parser's
 `snapshot` input so missed snapshots do not consume freshness. On a simultaneous
 report commit, the capture sees pre-edge state and the new report stays pending.
-The Pi-link demo has no real sensor producer; production payload assembly is the
+The Pi-link demo populates live foot contacts from GPIO; other sensor records
+remain invalid. Production payload assembly for IMU, encoders and CAN is the
 next integration task. Unimplemented groups must have their valid flags clear.
 
 Run `python scripts/run_tests.py` before merging. The Makefile and Vivado build

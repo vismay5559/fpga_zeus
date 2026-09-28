@@ -13,7 +13,8 @@ Workflow: the test file is the spec, you write the RTL, then review.
 - [x] `fifo_sync`: complete RTL, 8/8 tests; tests also verified against 13 mutations
 - [x] `uart_rx_fifo`: serial RX → FIFO integration, 5/5 tests at independent 3 Mbaud
 - [x] UART RX timing: 100 MHz/divider 33 versus independent 3 Mbaud and +/-100 ppm sender, all bytes/four phases
-- [ ] `debounce` + `foot_switches`: 4 inputs → synced, debounced, change timestamp
+- [x] `foot_switches`: 4 synchronized active-low inputs, 3/8-sample debounce,
+      per-switch timestamps, saturating foot ages and Pi demo integration
 - [x] `cycle_timer`: 1 kHz `sample` strobe + free-running µs timestamp counter
 - Done when: TX→FIFO→RX loopback is clean at 32 clks/bit; switch tests cover bounce and glitches.
 

@@ -74,17 +74,19 @@ vivado -mode batch -source scripts/program.tcl -tclargs build/pi_link_demo_top/p
 ```
 
 Review reports in build/pi_link_demo_top. The demo creates a snapshot every 1 ms,
-sets TEST_MODE, and sends invalid/zero sensor groups. Timestamp and sequence are
-real demo counters. LD4 indicates a completed packet waiting for the Pi. BTN0
-restarts timestamp/sequence. Power-on reset lasts 65535 FPGA cycles (~655 us).
-The actual snapshot payload is deliberately constant, so synthesis of this demo
-can optimize sensor storage away; its utilization is NOT the full robot cost.
+sets TEST_MODE, and sends live foot contacts while IMU/encoder/CAN groups remain
+invalid. Timestamp and sequence are real demo counters. LD4 indicates a completed
+packet waiting for the Pi; LED1/LED2 show left/right foot contact. BTN0 restarts
+timestamp, contacts and sequence. Power-on reset lasts 65535 FPGA cycles (~655 us).
+The other sensor groups are constant in this demo, so its utilization is NOT the
+full robot cost.
 
 ## 5. Wire the Pi demo (power off while changing wires)
 
 Use 3.3 V logic and a common ground, short wires, and the correct header orientation.
 Power the boards normally; do not connect a Pi 5 V rail to any FPGA signal pin.
-The demo reserves JA1-4; coordinate with the encoder teammate before sharing Pmods.
+The demo reserves JA1-4 for the Pi and JD1-4 for switches; coordinate with the
+encoder teammate before sharing Pmods.
 
 | Signal | Arty Pmod physical position | FPGA package pin | Pi 40-pin header |
 |---|---|---|---|
@@ -97,6 +99,22 @@ The demo reserves JA1-4; coordinate with the encoder teammate before sharing Pmo
 MOSI and hardware CE0 are not connected for this read-only phase. The supplied
 reader disables hardware CS and drives GPIO25 so setup/hold margins are explicit.
 JA physical pin numbers differ from FPGA package names; G13 is not a Pmod label.
+
+The four normally-open foot switches each connect a separate JD signal to a JD
+GND pin when pressed; the XDC requests internal pull-ups. No Pi GPIO wire is
+needed for the switch signals:
+
+| Switch | Arty signal | FPGA package pin | Debounced Pi packet bit |
+|---|---|---|---|
+| Left toe | JD1 | D4 | byte464 bit0 |
+| Left heel | JD2 | D3 | byte464 bit1 |
+| Right toe | JD3 | F4 | byte464 bit2 |
+| Right heel | JD4 | F3 | byte464 bit3 |
+
+Contact closes after three consecutive 1 kHz samples and opens after eight;
+byte465 bit0/bit1 are derived left/right foot contact. To bench-test, close one
+switch and check LED1 or LED2 and the reader's `switches`/`feet` output, then
+release and observe the longer break delay.
 
 ## 6. Read packets on the Pi
 
@@ -140,8 +158,8 @@ if a physical transmission error later causes Pi CRC rejection.
 
 ## 7. Integrate actual sensor modules
 
-Create a production top that instantiates cycle_timer, the sensor modules and
-pi_link. Pack same-clock retained registers into the documented payload. Connect
+Create a production top that instantiates cycle_timer, foot_switches, the
+other sensor modules and pi_link. Pack same-clock retained registers into the documented payload. Connect
 sample_accepted to each producer's freshness-consume input; do not clear freshness
 for snapshots rejected while busy. Fill bus/node IDs and units exactly as the
 protocol says. Cross asynchronous multi-bit data safely before packing it.

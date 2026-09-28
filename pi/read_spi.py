@@ -66,7 +66,9 @@ def main():
                     print(f'{count/(now-start):.1f} packets/s, seq={last.sequence}, '
                           f'us={last.timestamp_us}, fpga_dropped={last.dropped}, '
                           f'gap={gaps}, bad={bad}, resets={resets}, '
-                          f'test_mode={bool(last.flags & 0x80000000)}', flush=True)
+                          f'test_mode={bool(last.flags & 0x80000000)}, '
+                          f'switches={last.contacts[0]:04b}, feet={last.contacts[1]:02b}, '
+                          f'contact_ticks={last.contacts[3:5]}', flush=True)
                     last_print = now
             elapsed = time.monotonic() - start
             print(f'Final: {count} valid in {elapsed:.3f}s ({count/elapsed:.1f}/s), '

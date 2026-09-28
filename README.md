@@ -42,20 +42,23 @@ docs/         protocol, team integration, and hardware bring-up guides
 
 The Pi-facing SPI slave is implemented for reading sensor snapshots. Your teammate
 owns the separate encoder SPI master. The standalone Pi demo sends TEST_MODE
-packets with sensor validity clear; real sensor payload integration and the
+packets with live foot contacts and other sensor validity clear; real sensor payload integration and the
 Pi-to-FPGA motor-command path remain unfinished. The new ten-actuator integer
 protocol is not byte-compatible with the STM32 eight-actuator float protocol.
 
 Run all tests: `python scripts/run_tests.py` after activating the simulation venv.
-Run just this link: `make -C sim TOP=pi_link`.
+Run just this link: `make -C sim TOP=pi_link`; foot contacts:
+`make -C sim TOP=foot_switches` and `make -C sim TOP=pi_link_demo_top`.
+[Foot-switch walkthrough](docs/FOOT_SWITCHES.md) explains the RTL and tests.
 
 ## Modules
 
 | Module | State | What it does |
 |---|---|---|
+| [`foot_switches`](rtl/gpio/foot_switches.v) | simulation-tested | four synchronized/debounced active-low contacts and timing metadata |
 | [`cycle_timer`](rtl/common/cycle_timer.v) | simulation-tested | microsecond timestamp and 1 kHz sample strobe |
 | [`pi_link`](rtl/pi_link/pi_link.v) | simulation-tested | atomic snapshot/CRC and read-only Pi SPI slave |
-| [`pi_link_demo_top`](rtl/top/pi_link_demo_top.v) | bench demo | dedicated Arty top with invalid sensor payload |
+| [`pi_link_demo_top`](rtl/top/pi_link_demo_top.v) | bench demo | Arty SPI top with live contacts and test-mode invalid IMU/CAN data |
 | [`tick_gen`](rtl/common/tick_gen.v) | done | one-cycle pulse every N clocks; baud and cycle timing |
 | [`uart_tx`](rtl/uart/uart_tx.v) | done | 8N1 transmitter, LSB first, valid/ready handshake |
 | [`top`](rtl/top/top.v) | done | board bring-up blinky: LD4 toggles once per second, BTN0 resets |

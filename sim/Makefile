@@ -107,6 +107,11 @@ COMPILE_ARGS += -Pbno085_imu.FEATURE_GAP_US=5
 COMPILE_ARGS += -Pbno085_imu.RESPONSE_TIMEOUT_US=5000
 SIM_BUILD = sim_build/bno085_imu_c$(BNO_FULL_CLKS_PER_BIT)_m$(BNO_FULL_MAX_PACKET_BYTES)
 endif
+ifeq ($(TOP),pi_link_demo_top)
+COMPILE_ARGS += -Ppi_link_demo_top.POR_BITS=4
+COMPILE_ARGS += -Ppi_link_demo_top.CLKS_PER_US=1
+SIM_BUILD = sim_build/pi_link_demo_top_contact
+endif
 ifeq ($(TOP),bno085_imu_rx)
 export BNO_IMU_CLKS_PER_BIT ?= 33
 export BNO_IMU_FIFO_DEPTH ?= 8
