@@ -10,6 +10,9 @@ set_property -dict {PACKAGE_PIN T9 IOSTANDARD LVCMOS33} [get_ports {led[2]}]
 # Each normally-open switch connects its signal to ground when closed.
 set_property -dict {PACKAGE_PIN D4 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports {foot_sw_n[0]}]
 set_property -dict {PACKAGE_PIN D3 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports {foot_sw_n[1]}]
+# BNO085 UART on JB1/JB2; connect sensor TX -> imu_rx and sensor RX <- imu_tx.
+set_property -dict {PACKAGE_PIN E15 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports imu_rx]
+set_property -dict {PACKAGE_PIN E16 IOSTANDARD LVCMOS33} [get_ports imu_tx]
 set_property -dict {PACKAGE_PIN G13 IOSTANDARD LVCMOS33} [get_ports pi_sck]
 set_property -dict {PACKAGE_PIN B11 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports pi_cs_n]
 set_property -dict {PACKAGE_PIN A11 IOSTANDARD LVCMOS33} [get_ports pi_miso]
@@ -28,3 +31,6 @@ set_max_delay 10.0 -datapath_only -from [get_ports pi_cs_n] -to [get_ports pi_mi
 
 # The first stage alone receives asynchronous switch inputs.
 set_false_path -from [get_ports {foot_sw_n[*]}] -to [get_pins -hier -filter {NAME =~ */sync_first_reg[*]/D}]
+
+# Only the physical UART input to the first receiver synchronizer is asynchronous.
+set_false_path -from [get_ports imu_rx] -to [get_pins -hier -filter {NAME =~ */sync_reg[0]/D}]

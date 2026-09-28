@@ -110,7 +110,15 @@ endif
 ifeq ($(TOP),pi_link_demo_top)
 COMPILE_ARGS += -Ppi_link_demo_top.POR_BITS=4
 COMPILE_ARGS += -Ppi_link_demo_top.CLKS_PER_US=1
-SIM_BUILD = sim_build/pi_link_demo_top_contact
+COMPILE_ARGS += -Ppi_link_demo_top.IMU_CLKS_PER_BIT=4
+COMPILE_ARGS += -Ppi_link_demo_top.IMU_FIFO_DEPTH=8
+COMPILE_ARGS += -Ppi_link_demo_top.IMU_MAX_PACKET_BYTES=128
+COMPILE_ARGS += -Ppi_link_demo_top.IMU_TIMEOUT_CYCLES=200
+COMPILE_ARGS += -Ppi_link_demo_top.IMU_CLK_HZ=1000000
+COMPILE_ARGS += -Ppi_link_demo_top.IMU_TX_BYTE_GAP_US=3
+COMPILE_ARGS += -Ppi_link_demo_top.IMU_FEATURE_GAP_US=5
+COMPILE_ARGS += -Ppi_link_demo_top.IMU_RESPONSE_TIMEOUT_US=5000
+SIM_BUILD = sim_build/pi_link_demo_top_imu
 endif
 ifeq ($(TOP),bno085_imu_rx)
 export BNO_IMU_CLKS_PER_BIT ?= 33

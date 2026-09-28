@@ -18,7 +18,8 @@ unique; use one feature branch per person, never develop together on main.
 | `docs` | Shared protocol, ownership, and hardware procedures |
 
 The encoder SPI master and Pi SPI slave are DIFFERENT peripherals. The FPGA
-clocks the encoders; the Pi clocks the FPGA. The Pi demo allocates JA1-4 and two foot-switch inputs on JD1-2;
+clocks the encoders; the Pi clocks the FPGA. The Pi demo allocates JA1-4,
+two foot-switch inputs on JD1-2, and BNO085 UART on JB1-2;
 coordinate before putting encoder signals on that connector. Production pin
 allocation is a team integration decision, not inherited silently from the demo.
 The STM32 harness uses two two-device encoder daisy chains, not four individual
@@ -51,8 +52,8 @@ Construct it combinationally from same-clock retained sensor registers. The link
 captures it on `sample_accepted`. Connect that exact signal to the IMU parser's
 `snapshot` input so missed snapshots do not consume freshness. On a simultaneous
 report commit, the capture sees pre-edge state and the new report stays pending.
-The Pi-link demo populates live foot contacts from GPIO; other sensor records
-remain invalid. Production payload assembly for IMU, encoders and CAN is the
+The Pi-link demo populates live IMU and foot contacts; encoder/CAN records
+remain invalid. Production payload assembly for encoders and CAN is the
 next integration task. Unimplemented groups must have their valid flags clear.
 
 Run `python scripts/run_tests.py` before merging. The Makefile and Vivado build

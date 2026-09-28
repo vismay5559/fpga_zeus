@@ -1,20 +1,20 @@
 # BNO085 implementation contract and verification plan
 
-Updated 2026-09-24. The UART receive path, report decoder, paced SHTP transmitter,
+Updated 2026-09-28. The UART receive path, report decoder, paced SHTP transmitter,
 BSQ/BSN flow control, 400/400/100 startup command ROM, Get Feature confirmation,
 and automatic reset reconfiguration are implemented and tested in simulation.
 The SH-2 parser decodes calibrated acceleration, calibrated gyro and Rotation
 Vector with batch timing metadata, sequence diagnostics and snapshot freshness.
-Real capture replay, board pin integration and sustained-rate hardware measurement
+The Arty bench top now connects UART on JB1/JB2 and publishes these reports in
+the Pi snapshot. Real capture replay and sustained-rate hardware measurement
 remain required before treating the sensor path as complete on the robot.
 
 ## Reports and STM32 baseline
 
-The initial FPGA configuration is chosen to match the settings found in
-`vismay5559/stm32_zeuss` at commit
-`dac1862eb4639769f8e0b20e18c9e2a5dc1035d0`:
-[imu_bno085.c](https://github.com/vismay5559/stm32_zeuss/blob/dac1862eb4639769f8e0b20e18c9e2a5dc1035d0/Appli/App/imu_bno085.c),
-[main.c](https://github.com/vismay5559/stm32_zeuss/blob/dac1862eb4639769f8e0b20e18c9e2a5dc1035d0/Appli/Core/Src/main.c).
+The initial FPGA configuration matches the settings in `vismay5559/stm32_zeuss`
+at commit `df5997328c2a5b9c37e39b1dd1c82d6919ba5887`:
+[imu_bno085.c](https://github.com/vismay5559/stm32_zeuss/blob/df5997328c2a5b9c37e39b1dd1c82d6919ba5887/Appli/App/imu_bno085.c)
+and [app.c](https://github.com/vismay5559/stm32_zeuss/blob/df5997328c2a5b9c37e39b1dd1c82d6919ba5887/Appli/App/app.c).
 This is a source-code baseline, not confirmation of the binary flashed on the MCU.
 The FPGA is the sole BNO085 host in this project: it sends startup commands and
 receives reports. No STM32 connection is required.
@@ -141,17 +141,17 @@ status) can flag some such cases but cannot guarantee integrity. Retain original
 integer values with status; do not silently clamp them. A CRC on the FPGA-to-Pi
 snapshot protects that later link only, not bytes already corrupted from the IMU.
 
-Expose separate saturating 32-bit counters in the eventual Pi register map:
+The Pi snapshot exposes separate saturating 32-bit counters for:
 `sensor_reset_count` (per reset episode), `length_error_count` (per rejected packet),
 `fifo_overflow_count` (per dropped byte/write), `uart_frame_error_count`,
 `escape_error_count`, `packet_timeout_count`, `unsupported_report_count`,
 `continuation_error_count`, and per-channel sequence-gap events. Counters clear on
-FPGA reset; any software-clear interface must be explicit. They are requirements
-for later modules, not outputs already implemented by the FIFO skeleton.
+FPGA reset; any software-clear interface must be explicit. The complete mapping, including additional counters, is in
+[docs/PI_LINK_PROTOCOL.md](docs/PI_LINK_PROTOCOL.md).
 
 ## Per-report freshness contract
 
-Each report's eventual register bank stores signed integer components, a Q-point
+Each report's register bank stores signed integer components, a Q-point
 field, SHTP channel and sequence, SH-2 report sequence and status, 64-bit FPGA
 `capture_us`, `has_sample`, and `new_since_last_snapshot`.
 
@@ -174,7 +174,7 @@ update; every subsequent snapshot has new=false, with value/sequence/time retain
 Before the first report, has_sample=false. A confirmed sensor reset invalidates
 has_sample and pending until new data; retained bits are never presented as current.
 
-## Explicit acceptance tests for later exercises
+## Acceptance checks (simulation and remaining bench work)
 
 | Test name | Required observation |
 |---|---|

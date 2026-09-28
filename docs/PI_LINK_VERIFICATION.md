@@ -30,8 +30,8 @@ vivado -mode batch -source scripts/build.tcl -tclargs pi_link_demo_top constrain
 Generated logs/reports/bitstreams live under build/ and are ignored by Git.
 The source, tests, constraints and build instructions are versioned. No board was
 programmed in this task, and sustained Pi throughput is not hardware-verified.
-The STM32-compatible policy adapter, live sensor payload integration, command
-receiver and hardware motor watchdog are still future integration work.
+The STM32-compatible Pi policy adapter, live encoder/CAN payload assembly,
+command receiver and hardware motor watchdog remain future integration work.
 
 ## 2026-09-28 foot-contact extension
 
@@ -73,3 +73,37 @@ input is assigned. Bitstream generation completed at
 `build/pi_link_demo_top/pi_link_demo_top.bit`. This was not flashed to a board;
 electrical switch behavior and gait-dependent contact reliability remain bench
 tests.
+
+## 2026-09-28 BNO085-to-Pi integration
+
+The Arty bench top now connects `bno085_imu` UART RX/TX on JB1/JB2 to three
+40-byte ZFP1 IMU records, IMU diagnostics, and the existing contact snapshot.
+It requests the STM32-matching 400 Hz acceleration, 400 Hz gyro and 100 Hz
+Rotation Vector profile. The Pi reader prints scaled values and key IMU health
+fields. Encoder and CAN fields are still invalid placeholders.
+
+The new bit-level top test sends signed acceleration, gyro and Rotation Vector
+reports through the physical UART model, clocks a full SPI packet, and decodes
+it with the actual Pi parser. It checks raw integers and Q points, sequences,
+timestamps, retained values with `new=false` after silence, and reset
+invalidation. The test was added first and failed against the old contacts-only
+top. The final full regression passed **79 cocotb cases and 5 Python protocol
+tests**; the top suite passed 2/2 with the final 128-byte packet parameter.
+Verilator `--lint-only -Wall` passed for the complete top hierarchy.
+
+A first 512-byte receive-buffer build was stopped after routing remained
+congested and showed negative intermediate setup timing. The Arty top now
+limits UART-SHTP packets to 128 bytes; larger frames increment `oversize_errors`
+and are discarded until the next delimiter. The first 128-byte route missed
+setup by 0.045 ns on the startup controller's advertisement timeout read.
+Separating tag validation and timeout-byte reads by one clock removed that
+critical path; the startup, top and complete regression suites passed again.
+
+Vivado 2026.1 routed `pi_link_demo_top` for `xc7a100tcsg324-1` at 100 MHz:
+setup WNS **+0.156 ns**, hold WHS **+0.035 ns**, zero failing endpoints, and
+zero DRC violations. The design uses **8,029 LUTs and 7,803 flip-flops**. The IO
+report confirms `imu_rx` at E15 with pull-up and `imu_tx` at E16, both LVCMOS33.
+`build/pi_link_demo_top/pi_link_demo_top.bit` was generated locally and is
+ignored by Git. Setup margin is narrow; the 128-byte limit and actual 400/400/100
+delivery must be checked with a real BNO085 before calling this hardware ready.
+No board was programmed in this verification.

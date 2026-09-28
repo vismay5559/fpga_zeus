@@ -16,3 +16,4 @@ Claude-*.md
 
 # Vivado clock-routing debug artifact
 clockInfo.txt
+tight_setup_hold_pins.txt

@@ -140,11 +140,12 @@ Remote: `https://github.com/vismay5559/fpga_zeus` (branch `main`).
 | `bno085_uart_packet_tx` | 4/4 | framing, escaping, per-channel sequences and measured inter-byte gaps |
 | `bno085_startup_controller` | 4/4 | BSN gating, exact profile, confirmation retry and reset reconfiguration |
 | `bno085_imu` | 1/1 | physical bidirectional wire integration, report fanout and reset invalidation |
-| `top` | — | blinky bring-up: LD4 toggles once per second, BTN0 resets. `uart_*` are not wired into it yet |
+| `top` | — | blinky bring-up: LD4 toggles once per second, BTN0 resets. Separate from the IMU/contact Pi demo |
+| `pi_link_demo_top` | 2/2 | BNO085 UART and two switches to immutable 640-byte Pi SPI snapshots |
 
-Next for the IMU path: replay a real BNO085/STM32 capture, connect `bno085_imu`
-to board pins and the 1 kHz/Pi register path, then measure sustained 400/400/100
-delivery on hardware. BNO085 requirements are in BNO085_PLAN.md. Other planned blocks: teammate-owned encoder SPI master + AS5047P readers,
+Next for the IMU path: replay a real BNO085/STM32 capture and measure
+sustained 400/400/100 delivery on hardware. The bench top already connects
+`bno085_imu` to Arty JB1/JB2 and the 1 kHz Pi snapshot path. BNO085 requirements are in BNO085_PLAN.md. Other planned blocks: teammate-owned encoder SPI master + AS5047P readers,
 CAN FD, production snapshot integration and motor safety.
 
 ### Conventions in the RTL
@@ -212,7 +213,7 @@ Pi link implements 640-byte ZFP1 v1 snapshot framing/CRC, a read-only SPI mode0
 slave, partial-read rewind, single in-flight frame and counted dropped snapshots.
 cycle_timer provides 1 kHz sample + 64-bit microseconds. Pi decoder/reader live in
 pi/. Packet fields/offsets are in docs/PI_LINK_PROTOCOL.md. pi_link_demo_top sends
-live foot contacts and invalid other sensor records with TEST_MODE set; production sensor payload mapping,
+live IMU and foot contacts with TEST_MODE set; encoder/CAN payload mapping,
 Pi InEKF adapter and motor-command/gains/watchdog integration remain.
 
 Build default blinky: scripts/build.tcl -> build/top/top.bit. Demo: pass
@@ -230,4 +231,4 @@ change timestamp, event pulses, and per-foot saturating stable age. Four focused
 cocotb tests pass. The Arty Pi demo now uses JD1-2 for switch-to-ground inputs
 with requested pull-ups, LED1/LED2 for left/right feet, and packs live contacts
 into bytes464..479 of the ZFP1 snapshot. Bit-level top/Pi decoder integration
-passes; see docs/FOOT_SWITCHES.md. Production top integration remains.
+passes; see docs/FOOT_SWITCHES.md. IMU-to-Pi integration now lives in the bench top; encoder/CAN integration remains.

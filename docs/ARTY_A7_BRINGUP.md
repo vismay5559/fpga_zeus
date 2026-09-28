@@ -14,8 +14,8 @@ not programming the FPGA.
 
 Only modules reachable from the selected top exist in the bitstream. A hundred
 other source files in rtl do not make their interfaces appear on pins. `top` is
-still blinky; `pi_link_demo_top` is a standalone packet/SPI test. Neither currently
-contains the real IMU + encoder + CAN robot integration.
+still blinky; `pi_link_demo_top` is a separate IMU/contact/Pi bench design.
+Encoder and CAN integration remains.
 
 ## 1. Update and simulate (development PC)
 
@@ -74,19 +74,19 @@ vivado -mode batch -source scripts/program.tcl -tclargs build/pi_link_demo_top/p
 ```
 
 Review reports in build/pi_link_demo_top. The demo creates a snapshot every 1 ms,
-sets TEST_MODE, and sends live foot contacts while IMU/encoder/CAN groups remain
-invalid. Timestamp and sequence are real demo counters. LD4 indicates a completed
-packet waiting for the Pi; LED1/LED2 show left/right foot contact. BTN0 restarts
+sets TEST_MODE, and sends live BNO085 IMU and foot contacts while
+encoder/CAN groups remain invalid. Timestamp and sequence are real demo
+counters. LD4 indicates a completed packet waiting for the Pi; LED1/LED2 show left/right foot contact. BTN0 restarts
 timestamp, contacts and sequence. Power-on reset lasts 65535 FPGA cycles (~655 us).
-The other sensor groups are constant in this demo, so its utilization is NOT the
+The encoder/CAN groups are constant in this demo, so its utilization is NOT the
 full robot cost.
 
 ## 5. Wire the Pi demo (power off while changing wires)
 
 Use 3.3 V logic and a common ground, short wires, and the correct header orientation.
 Power the boards normally; do not connect a Pi 5 V rail to any FPGA signal pin.
-The demo reserves JA1-4 for the Pi and JD1-2 for switches; coordinate with the
-encoder teammate before sharing Pmods.
+The demo reserves JA1-4 for the Pi, JD1-2 for switches and JB1-2 for
+the BNO085 UART; coordinate with the encoder teammate before sharing Pmods.
 
 | Signal | Arty Pmod physical position | FPGA package pin | Pi 40-pin header |
 |---|---|---|---|
@@ -108,6 +108,22 @@ needed for the switch signals:
 |---|---|---|---|
 | Left center sole | JD1 | D4 | byte464 bit0 |
 | Right center sole | JD2 | D3 | byte464 bit1 |
+
+Connect the BNO085 in UART mode at 3.3 V logic level, with a shared ground.
+Cross the UART signals: sensor TX goes to FPGA `imu_rx`, and FPGA `imu_tx`
+goes to sensor RX. Confirm the sensor breakout's voltage and UART-mode straps
+from its own schematic before powering it.
+
+| BNO085 signal | Arty signal | FPGA package pin |
+|---|---|---|
+| Sensor TX -> FPGA RX | JB1 | E15 |
+| FPGA TX -> sensor RX | JB2 | E16 |
+
+After reset the FPGA sends Set Feature commands for acceleration and gyro at
+400 Hz and Rotation Vector at 100 Hz. The Pi packet carries raw signed Q8,
+Q9 and Q14 integers; `pi/read_spi.py` prints the scaled physical values.
+Check `imu_configured`, per-report `has_sample`/`new`, timestamps and the
+IMU diagnostic counters while testing a real sensor.
 
 Contact closes after three consecutive 1 kHz samples and opens after eight;
 byte465 bit0/bit1 repeat the left/right switch state. To bench-test, close one
@@ -156,14 +172,15 @@ if a physical transmission error later causes Pi CRC rejection.
 
 ## 7. Integrate actual sensor modules
 
-Create a production top that instantiates cycle_timer, foot_switches, the
-other sensor modules and pi_link. Pack same-clock retained registers into the documented payload. Connect
-sample_accepted to each producer's freshness-consume input; do not clear freshness
+Extend the IMU/contact demo into a production top by adding encoder and CAN
+modules to `cycle_timer`, `foot_switches`, `bno085_imu` and `pi_link`. Pack
+same-clock retained registers into the documented payload. Connect
+`sample_accepted` to each producer's freshness-consume input; do not clear freshness
 for snapshots rejected while busy. Fill bus/node IDs and units exactly as the
 protocol says. Cross asynchronous multi-bit data safely before packing it.
 Run integration tests, add actual pin/clock constraints, rebuild and rerun the
 bench procedure. Pi-side scaling and InEKF are additional software integration.
-The current demo does not configure/read the BNO085 or command any ODrive.
+The current demo does not command any ODrive.
 
 ## JTAG programming versus persistent flash
 

@@ -67,8 +67,15 @@ def main():
                           f'us={last.timestamp_us}, fpga_dropped={last.dropped}, '
                           f'gap={gaps}, bad={bad}, resets={resets}, '
                           f'test_mode={bool(last.flags & 0x80000000)}, '
+                          f'imu_configured={bool(last.flags & 1)}, '
                           f'switches={last.contacts[0]:02b}, feet={last.contacts[1]:02b}, '
-                          f'contact_ticks={last.contacts[3:5]}', flush=True)
+                          f'contact_ticks={last.contacts[3:5]}, '
+                          f'accel_mps2={last.imu[0].scaled()}, '
+                          f'gyro_rps={last.imu[1].scaled()}, '
+                          f'quat_ijkr={last.imu[2].scaled()}, '
+                          f'imu_new={tuple(r.new for r in last.imu)}, '
+                          f'imu_oversize={last.diagnostics["oversize_errors"]}, '
+                          f'sensor_resets={last.diagnostics["sensor_resets"]}', flush=True)
                     last_print = now
             elapsed = time.monotonic() - start
             print(f'Final: {count} valid in {elapsed:.3f}s ({count/elapsed:.1f}/s), '

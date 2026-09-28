@@ -50,6 +50,7 @@ module bno085_startup_controller #(
     localparam [2:0] RX_RECEIVE = 3'd1;
     localparam [2:0] RX_PROCESS = 3'd2;
     localparam [2:0] RX_AD_SCAN = 3'd3;
+    localparam [2:0] RX_AD_TIMEOUT = 3'd4;
 
     localparam [3:0] M_NEED_BSQ     = 4'd0;
     localparam [3:0] M_WAIT_BSQ     = 4'd1;
@@ -75,6 +76,7 @@ module bno085_startup_controller #(
     reg [2:0] rx_state;
     reg [7:0] packet_mem [0:MAX_PACKET_BYTES-1];
     reg [CW-1:0] rx_count, rx_len, ad_scan_index;
+    reg [AW-1:0] ad_timeout_addr;
     reg [7:0] rx_protocol;
     reg rx_stream_bad;
 
@@ -189,6 +191,7 @@ module bno085_startup_controller #(
             rx_count <= {CW{1'b0}};
             rx_len <= {CW{1'b0}};
             ad_scan_index <= {CW{1'b0}};
+            ad_timeout_addr <= {AW{1'b0}};
             rx_protocol <= 8'd0;
             rx_stream_bad <= 1'b0;
             rx_bsn_event <= 1'b0;
@@ -270,14 +273,22 @@ module bno085_startup_controller #(
                     end else if (ad_entry_end > {1'b0, rx_len}) begin
                         rx_state <= RX_IDLE;
                     end else begin
-                        if ((ad_tag == 8'h81)
-                            && (ad_size == 4)) begin
-                            rx_timeout_ms <= {packet_mem[ad_addr+5], packet_mem[ad_addr+4],
-                                              packet_mem[ad_addr+3], packet_mem[ad_addr+2]};
-                            rx_timeout_tag_event <= 1'b1;
+                        if ((ad_tag == 8'h81) && (ad_size == 4)) begin
+                            // Separate tag validation from four dynamic RAM reads.
+                            // This extra clock removes a long 100 MHz CE path.
+                            ad_timeout_addr <= ad_addr;
+                            rx_state <= RX_AD_TIMEOUT;
                         end
                         ad_scan_index <= ad_entry_end[CW-1:0];
                     end
+                end
+                RX_AD_TIMEOUT: begin
+                    rx_timeout_ms <= {packet_mem[ad_timeout_addr+5],
+                                      packet_mem[ad_timeout_addr+4],
+                                      packet_mem[ad_timeout_addr+3],
+                                      packet_mem[ad_timeout_addr+2]};
+                    rx_timeout_tag_event <= 1'b1;
+                    rx_state <= RX_AD_SCAN;
                 end
                 default: rx_state <= RX_IDLE;
             endcase

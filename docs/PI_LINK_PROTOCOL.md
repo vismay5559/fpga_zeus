@@ -125,8 +125,8 @@ Contacts: offset0 uint8 debounced center-sole switch bits (left bit0, right bit1
 change. Header bit2 indicates whether the GPIO subsystem is present; health describes faults.
 When contacts are present, the Pi decoder rejects nonzero mask bits 2..7 and
 a foot mask that differs from the switch mask.
-The Arty Pi demo now populates this record from synchronized, debounced foot
-switches; its other sensor groups remain invalid/test-mode.
+The Arty Pi demo populates this record from synchronized, debounced foot
+switches and includes live IMU records. Encoder/CAN groups remain invalid/test-mode.
 
 ## Diagnostics
 
@@ -152,9 +152,9 @@ no ARMED state is produced by this link. Expanding semantics requires joint revi
 ## Implementation boundary and next steps
 
 Implemented: snapshot atomicity/CRC, SPI reads and abort recovery, Pi decoder,
-1 kHz timer, standalone invalid-payload demo. The generic snapshot accepts a
+1 kHz timer, and IMU/contact bench demo. The generic snapshot accepts a
 packed same-clock payload; it does not validate producer fields. Production
-sensor/CAN/encoder/GPIO payload assembly and Pi-side estimator integration remain.
+encoder/CAN payload assembly and Pi-side estimator integration remain.
 The existing STM32 USB reader does not decode this protocol. Pi policy adapters,
 commands/gains, acknowledgements, watchdog integration and full robot top are
 separate work, not implied by the SPI reader being complete.
