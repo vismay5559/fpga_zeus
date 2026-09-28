@@ -1,127 +1,50 @@
 # fpga_zeus
 
-FPGA hardware-interface layer for a bipedal robot, replacing the STM32 that currently
-handles every sensor and motor bus.
+FPGA hardware-interface project for a bipedal robot, targeting a Digilent Arty A7-100T (`xc7a100tcsg324-1`, 100 MHz). The Raspberry Pi is intended to receive timestamped sensor snapshots and run scaling, fusion and higher-level policy.
 
-**Board:** Digilent Arty A7-100T (Xilinx Artix-7, `xc7a100tcsg324-1`, 100 MHz)
+**Current boundary:** UART/BNO085 modules, the 1 kHz timer, two foot-switch inputs and a read-only Pi SPI link have simulation coverage. The **Arty bench demo** joins the timer, switches and Pi link: it sends real foot-contact bits and marks IMU/encoder/CAN data invalid. It is not a complete robot top. No physical-board results are recorded. The Pi-to-FPGA motor-command path and contact-triggered torque override have not been implemented.
 
-## What it will do
+- [What works, what is missing, and the next steps](docs/PROJECT_STATUS.md) — current status source of truth.
+- [How the implemented system works, from basics](docs/SYSTEM_WALKTHROUGH.md) — modules, tests and data flow.
+- [Prioritized work plan](ROADMAP.md) and [project handoff/history](CONTEXT.md).
 
-The Pi is the main compute. The FPGA owns everything with hard timing, samples all of
-it on the same 1 kHz strobe, and hands the Pi one timestamped snapshot per cycle.
+## Target and ownership
 
-| Interface | Devices | Notes |
+| Interface | Target | Current state |
 |---|---|---|
-| CAN FD ×2 | 10× ODrive S1 | 1 Mbit nominal / 5 Mbit data, ISO1042 transceivers, CTU CAN FD core |
-| SPI master ×4 | AS5047P encoders | after-spring position on both hip and knee SEAs |
-| GPIO ×2 | foot switches | one center-sole switch per foot, debounced in logic |
-| UART | BNO085 IMU | SHTP framing at 3 Mbaud |
-| SPI slave | Raspberry Pi | state snapshot out, motor commands in, plus a data-ready line |
+| BNO085 UART-SHTP | calibrated acceleration and gyro at 400 Hz, reference quaternion at 100 Hz | UART/IMU host simulated; not wired into the Pi demo or measured on a real sensor |
+| Foot GPIO | one center-sole switch per foot | simulated and connected to Pi bench demo; sampled at 1 kHz with 3/8-sample debounce |
+| AS5047P SPI master | four spring encoders | teammate-owned; implementation not yet in this repository |
+| CAN FD ×2 | ten ODrive S1 axes | not implemented |
+| Pi-facing SPI slave | 640-byte ZFP1 snapshot, attempted every 1 ms | packet/SPI path simulated; bench demo contains live contacts only |
+| Motor commands | future Pi commands and local contact-triggered override | deferred; exact torque behavior is not decided |
 
-Sensor fusion (InEKF) stays off the FPGA for now. See [ROADMAP.md](ROADMAP.md) for the
-schedule and current status, and [CONTEXT.md](CONTEXT.md) for the full background:
-decisions already made, working conventions, and environment quirks.
+The 1 kHz snapshot is a **reporting schedule**, not a sub-millisecond motor-response path. The link has one in-flight packet and counts dropped snapshot attempts when the Pi reads too slowly. Ten actuator slots are reserved even though the current STM32 NEXUS packet carries eight leg joints. See [the packet specification](docs/PI_LINK_PROTOCOL.md).
 
-## Layout
+## Repository map
 
+```text
+rtl/common/   timer, tick, FIFO       rtl/uart/     generic serial transport
+rtl/imu/      BNO085 host             rtl/gpio/     two center-sole inputs
+rtl/pi_link/  packet and Pi SPI slave rtl/top/      blinky and Pi bench-demo tops
+rtl/spi/      encoder SPI ownership   rtl/can/      CAN ownership (no RTL yet)
+sim/          matching cocotb suites, waveforms and Makefile
+pi/           ZFP1 decoder and bench SPI reader
+docs/         status, walkthrough, protocol, verification and board guides
+constraints/  Arty pin/timing constraints
+scripts/      regression, mutation, Vivado build and programming scripts
 ```
-rtl/          common/, uart/, imu/, pi_link/, spi/, can/, gpio/, top/
-sim/          matching interface test folders + shared Makefile
-constraints/  Arty pin assignments (.xdc)
-scripts/      build/program Tcl and regression/mutation runners
-pi/           packet decoder and Raspberry Pi SPI reader
-docs/         protocol, team integration, and hardware bring-up guides
-```
 
-## Pi link and team organization
+## Verify and build
 
-- [Team ownership and folder workflow](docs/TEAM_WORKFLOW.md)
-- [Recorded simulation and build checks](docs/PI_LINK_VERIFICATION.md)
-- [Exact 640-byte FPGA-to-Pi protocol](docs/PI_LINK_PROTOCOL.md)
-- [Build, program and test on Arty A7-100T](docs/ARTY_A7_BRINGUP.md)
-
-The Pi-facing SPI slave is implemented for reading sensor snapshots. Your teammate
-owns the separate encoder SPI master. The standalone Pi demo sends TEST_MODE
-packets with live foot contacts and other sensor validity clear; real sensor payload integration and the
-Pi-to-FPGA motor-command path remain unfinished. The new ten-actuator integer
-protocol is not byte-compatible with the STM32 eight-actuator float protocol.
-
-Run all tests: `python scripts/run_tests.py` after activating the simulation venv.
-Run just this link: `make -C sim TOP=pi_link`; foot contacts:
-`make -C sim TOP=foot_switches` and `make -C sim TOP=pi_link_demo_top`.
-[Foot-switch walkthrough](docs/FOOT_SWITCHES.md) explains the RTL and tests.
-
-## Modules
-
-| Module | State | What it does |
-|---|---|---|
-| [`foot_switches`](rtl/gpio/foot_switches.v) | simulation-tested | two synchronized/debounced active-low center-sole contacts and timing metadata |
-| [`cycle_timer`](rtl/common/cycle_timer.v) | simulation-tested | microsecond timestamp and 1 kHz sample strobe |
-| [`pi_link`](rtl/pi_link/pi_link.v) | simulation-tested | atomic snapshot/CRC and read-only Pi SPI slave |
-| [`pi_link_demo_top`](rtl/top/pi_link_demo_top.v) | bench demo | Arty SPI top with live contacts and test-mode invalid IMU/CAN data |
-| [`tick_gen`](rtl/common/tick_gen.v) | done | one-cycle pulse every N clocks; baud and cycle timing |
-| [`uart_tx`](rtl/uart/uart_tx.v) | done | 8N1 transmitter, LSB first, valid/ready handshake |
-| [`top`](rtl/top/top.v) | done | board bring-up blinky: LD4 toggles once per second, BTN0 resets |
-| [`uart_rx`](rtl/uart/uart_rx.v) | done | receiver: 2-flop synchronizer, mid-bit sampling, glitch rejection, framing errors |
-| [`fifo_sync`](rtl/common/fifo_sync.v) | done | parameterized synchronous byte queue with overflow/underflow diagnostics |
-| [`uart_rx_fifo`](rtl/uart/uart_rx_fifo.v) | done | connects UART RX bytes to FIFO; tested with independent 3 Mbaud input |
-| [`shtp_uart_deframer`](rtl/imu/shtp_uart_deframer.v) | done | stages, unescapes and validates complete UART-SHTP packets |
-| [`bno085_uart_rx`](rtl/imu/bno085_uart_rx.v) | done | complete serial RX → FIFO → validated SHTP packet integration and recovery |
-| [`sh2_report_parser`](rtl/imu/sh2_report_parser.v) | done | atomically decodes accel Q8, gyro Q9 and Rotation Vector Q14 reports |
-| [`bno085_imu_rx`](rtl/imu/bno085_imu_rx.v) | done | real 3 Mbaud RX through retained raw IMU registers, timestamps and freshness |
-| [`bno085_uart_packet_tx`](rtl/imu/bno085_uart_packet_tx.v) | done | SHTP framing/escaping and a parameterized gap after every physical UART byte |
-| [`bno085_startup_controller`](rtl/imu/bno085_startup_controller.v) | done | BSQ/BSN flow control, exact 400/400/100 commands, confirmation and reset recovery |
-| [`bno085_imu`](rtl/imu/bno085_imu.v) | done | complete bidirectional sensor host from RX/TX pins to configured IMU registers |
-
-The [FIFO walkthrough](sim/FIFO_EXERCISE.md) explains its tests and RTL from basics.
-IMU requirements and STM32 comparison: [BNO085 plan](BNO085_PLAN.md).
-The [UART/BNO085 walkthrough](UART_BNO085_WALKTHROUGH.md) explains UART, every
-receive module and every cocotb file from the beginning.
-
-## Working on it
-
-Every module is written test-first: the cocotb testbench in `sim/` is the
-specification, and the RTL is written until it passes. Nothing is flashed to the board
-before it passes in simulation.
+From the repository root:
 
 ```bash
 source ~/fpga/venv/bin/activate
-
-cd sim
-make TOP=uart_tx WAVES=1     # compile with Icarus, run the cocotb tests, record waves
-make TOP=uart_tx view        # open the waveform in GTKWave
-make TOP=uart_tx COCOTB_TESTCASE=single_bytes   # run one test
-make TOP=bno085_uart_rx                         # full BNO085 receive transport
-make TOP=sh2_report_parser                      # focused SH-2 report tests
-make TOP=bno085_imu_rx                          # serial wire through final IMU registers
-make TOP=bno085_uart_packet_tx                  # paced SHTP transmitter
-make test-bno-tx-gaps                           # measure both 100 us and 120 us settings
-make TOP=bno085_startup_controller              # command and flow-control state machine
-make TOP=bno085_imu                             # complete bidirectional host
-make view-uart-example                          # checked-in passing UART waveform
-
-verilator --lint-only -Wall rtl/uart/uart_tx.v       # from the project root
+python scripts/run_tests.py
+make -C sim TOP=foot_switches
+make -C sim TOP=pi_link_demo_top
+vivado -mode batch -source scripts/build.tcl -tclargs pi_link_demo_top constraints/arty_a7_100_pi_demo.xdc
 ```
 
-Simulation parameters are shrunk so tests run fast: `CLKS_PER_BIT=16` for `uart_tx`,
-`DIV=10` for `tick_gen`. The synthesized design uses the real values.
-
-## Building for the board
-
-```bash
-vivado -mode batch -source scripts/build.tcl    # → build/top/top.bit
-grep -A3 WNS build/top/timing.rpt                   # worst slack must not be negative
-vivado -mode batch -source scripts/program.tcl  # flash over USB (lost on power-off)
-```
-
-## Toolchain
-
-Vivado 2026.1 (Basic tier license, Artix-7 only) · Icarus Verilog 12 · Verilator 5 ·
-cocotb 2.1 in a venv at `~/fpga/venv` · GTKWave.
-
-Two environment quirks on this setup:
-
-- ROS is sourced in `~/.bashrc` and its pytest plugins break cocotb, so the sim Makefile
-  sets `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`.
-- VS Code installed as a snap exports library paths that crash GTKWave and block
-  Surfer's WebGL, so `make view` clears the environment before launching.
+The build writes `build/pi_link_demo_top/pi_link_demo_top.bit` locally; generated artifacts are ignored by Git. Follow [ARTY_A7_BRINGUP.md](docs/ARTY_A7_BRINGUP.md) for wiring and programming. The most recent recorded tests and routed timing are in [PI_LINK_VERIFICATION.md](docs/PI_LINK_VERIFICATION.md). Other focused explanations: [foot switches](docs/FOOT_SWITCHES.md), [UART/BNO085](UART_BNO085_WALKTHROUGH.md), [BNO085 requirements](BNO085_PLAN.md), [FIFO](sim/FIFO_EXERCISE.md), and [team ownership](docs/TEAM_WORKFLOW.md), and [checked-in UART waveform](sim/waves/README.md).

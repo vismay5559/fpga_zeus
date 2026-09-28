@@ -5,7 +5,7 @@ storage slots with two bookmarks: `wr_ptr` marks the next write location; `rd_pt
 marks the oldest unread word. `level` counts the words waiting. Each bookmark
 wraps to zero after the last slot.
 
-Read the contract in [test_fifo_sync.py](test_fifo_sync.py), then follow the six
+Read the contract in [test_fifo_sync.py](common/test_fifo_sync.py), then follow the six
 numbered TODO explanations in [fifo_sync.v](../rtl/common/fifo_sync.v). The implementation
 is now complete; each TODO remains immediately above the code that implements it.
 

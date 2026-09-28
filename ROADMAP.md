@@ -1,85 +1,12 @@
-# Roadmap: every sensor read on the FPGA by Oct 15, 2026
+# Roadmap — remaining work
 
-Scope: 2× CAN FD (10 ODrive S1), 4× AS5047P spring encoders (SPI), 2 foot switches,
-BNO085 (UART-SHTP, 3 Mbaud), all latched into one snapshot that the Pi reads.
-Out of scope for now: sensor fusion (InEKF), RS485 BMS, motor commands beyond a test joint.
+The current implementation boundary is in [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md). This is an ordered backlog, not a claim that a dated milestone or physical test has passed. The original October 15 sensor-integration target appears in the project history; progress is judged by the acceptance checks below.
 
-Rule: every block passes cocotb tests before it goes near hardware.
-Workflow: the test file is the spec, you write the RTL, then review.
+1. **Encoder SPI master and four AS5047P readers — teammate-owned.** Merge the teammate's tested code, verify the two daisy-chain wiring used by the STM32 setup, recover angles with parity/error handling, timestamps and stale/fault flags, then test on real encoders. The FPGA Pi-facing SPI slave is a separate, already simulated block.
+   The earlier AS5047P reader contract called for mode 1, MSB-first transfers, a repeated angle-read command because replies are pipelined by one frame, and parity/error-flag checks. Confirm those details against the teammate's implementation and actual sensor wiring before integration.
+2. **Two CAN FD buses and ten ODrive axis records.** Integrate the chosen CAN controller and transceivers, implement RX filtering and retained position/velocity/torque/error/heartbeat data with ages and faults, then verify both buses with simulated and bench traffic. No CAN RTL is present today.
+3. **Production sensor top and payload.** Connect the already simulated BNO085 UART host, two sole switches, encoder readers and CAN state to one 100 MHz top and the existing 1 kHz ZFP1 packet. Keep ten actuator slots; clear validity for absent/stale data. Preserve atomic capture, timestamps, freshness and drop counts. The current Arty Pi demo has contacts only.
+4. **Physical bring-up and throughput.** Build/program the production top; verify BNO085 400/400/100 requests and measured delivery, replay real STM32 captures, check switch behavior with the real sole/harness, inspect encoder and CAN error paths, and measure actual Pi packet rate and drops. A 1 kHz packet attempt does not prove 1,000 packets/s reach Linux.
+5. **Pi interpretation and motor safety.** Add Pi-side scaling/ten-joint mapping and InEKF inputs. Later define the exact ODrive command, arbitration with Pi commands, watchdog/fault behavior and a direct fast contact-to-CAN path for the requested under-1-ms response. **Do not gate that future motor path on the present 1 kHz, 3/8-sample telemetry filter.** The motor override is intentionally deferred until its semantics are decided.
 
-## Week 1: Sep 17–23 · UART, FIFO, foot switches
-- [x] `uart_tx`: 5/5 tests passing
-- [x] `uart_rx`: 2-flop sync, mid-bit sampling, framing error; loopback tests with ±2% baud error
-- [x] `fifo_sync`: complete RTL, 8/8 tests; tests also verified against 13 mutations
-- [x] `uart_rx_fifo`: serial RX → FIFO integration, 5/5 tests at independent 3 Mbaud
-- [x] UART RX timing: 100 MHz/divider 33 versus independent 3 Mbaud and +/-100 ppm sender, all bytes/four phases
-- [x] `foot_switches`: 2 synchronized active-low center-sole inputs, 3/8-sample debounce,
-      per-switch timestamps, saturating foot ages and Pi demo integration
-- [x] `cycle_timer`: 1 kHz `sample` strobe + free-running µs timestamp counter
-- Done when: TX→FIFO→RX loopback is clean at 32 clks/bit; switch tests cover bounce and glitches.
-
-## Week 2: Sep 24–30 · CDC + AS5047P encoders
-- [ ] CDC: level sync, pulse sync, async FIFO (Gray pointers)
-- [ ] `spi_master`: CPOL/CPHA, 16-bit frames, clock divider, MISO sample delay
-- [ ] `as5047p_reader` ×4, all started by the same `sample` strobe
-  - Mode 1 (CPOL=0, CPHA=1), MSB first, SCK ≤ 10 MHz, CSn high ≥ 350 ns between frames
-  - Send `0xFFFF` (read ANGLECOM 0x3FFF, parity bit set). The reply lags one frame, so
-    repeating the same read returns an angle every frame after the first.
-  - Reply: bit15 = even parity, bit14 = error flag, bits13:0 = angle
-  - Outputs: angle, valid, timestamp, parity/EF error counters, "N bad reads in a row" fault
-- [ ] cocotb AS5047P model: known angles, injected parity/EF errors, cable delay
-- Done when: all 4 encoders update in the same cycle in sim; bad frames never show up as valid.
-
-## Week 3: Oct 1–7 · BNO085 (UART-SHTP)
-Detailed contract and named acceptance tests: [BNO085_PLAN.md](BNO085_PLAN.md).
-FPGA startup requests acceleration/gyro at 400 Hz, Rotation Vector at 100 Hz, with a
-120 us TX byte gap. Actual acceleration and gyro must each exceed 250 Hz on hardware.
-
-- [x] SHTP-over-UART deframer: staging, flag/escape decode, length validation,
-      resynchronization, timeout/backpressure/error tests (10/10)
-- [x] End-to-end BNO085 RX transport: exact 3 Mbaud serial input → UART RX →
-      FIFO/holding bridge → validated SHTP packets; overflow/error flush recovery
-- [x] SHTP header parser: length/channel/sequence validation and gap counters
-- [x] Report parser: accelerometer Q8, gyro Q9, Rotation Vector Q14/Q12 accuracy,
-      base/rebase timing metadata, capture timestamp and snapshot freshness
-- [x] Startup FSM + command ROM: request advertisement, Set Feature per report, reset recovery
-- [x] FPGA startup simulation: configure the 400/400/100 profile and confirm all intervals
-- [x] Parameterized TX byte gap, BSQ/BSN flow control, reset invalidation and diagnostic counters/tests
-- [ ] Replay real frames captured from the STM32 setup in cocotb
-- Done when: replayed captures decode to the same values the STM32 reports.
-
-## Week 4: Oct 8–14 · CAN FD (CTU CAN FD core)
-- [ ] GHDL install; CTU CAN FD core simulated standalone in cocotb
-- [ ] Register-bus bridge to the core; bit timing for 1 M / 5 M at the system clock; TDC for ISO1042
-- [ ] RX filter → per-axis state table (position, velocity, errors, heartbeat age) ×10
-- [ ] Two instances; heartbeat timeout flags
-- [ ] (If the board has arrived) FPGA ↔ STM32 on a bench bus, then one ODrive in idle
-- Done when: simulated ODrive frames on both buses fill all 10 axis entries.
-- Biggest risk: if it slips, it eats the Oct 15 buffer day.
-
-## Oct 15 · Integration
-- [ ] `snapshot`: latch switches, encoders, IMU and 10 axes on the `sample` strobe
-- [ ] Pi link: SPI slave (mode 0) + data-ready GPIO, fixed frame with header + CRC,
-      same layout as the current STM32 frame (UART dump to PC as a fallback)
-- [ ] `top.v` synthesizes for the xc7a100t with positive WNS
-- Goal: one simulation/bitstream where every sensor shows up in the frame the Pi reads.
-
-## Buy / check before hardware bring-up
-- Logic analyzer ≥ 100 Msps (DSLogic class)
-- ISO1042 breakouts, 120 Ω terminations, twisted pair, Pmod/breadboard adapter
-- AS5047P cable lengths → RS422 drivers if they run long next to motor leads
-- Arty I/O is 3.3 V only; check every part's voltage levels
-
-## Pi-link implementation update (2026-09-27)
-
-- [x] Ten-actuator ZFP1 schema and strict Python decoder; integer IMU + metadata.
-- [x] Immutable packet capture, CRC, backpressure/drop counters and abort rewind.
-- [x] Read-only SPI slave and physical-wire cocotb integration.
-- [x] Standalone Arty Pi-link demo top, XDC and Pi bench reader.
-- [ ] Populate production packet from actual IMU/CAN/encoder/switch modules.
-- [ ] Pi-side estimator/state adapter, command/gains input and watchdog integration.
-- [ ] Physical-board validation and sustained Pi throughput measurement.
-
-The earlier STM32-compatible-frame goal is superseded by docs/PI_LINK_PROTOCOL.md:
-current STM32 v8 has eight joints and estimator floats; this project retains ten
-and Pi-side scaling/fusion. Encoder SPI master remains teammate-owned.
+The BNO085 test and rate contract is in [BNO085_PLAN.md](BNO085_PLAN.md); the 640-byte packet layout is in [docs/PI_LINK_PROTOCOL.md](docs/PI_LINK_PROTOCOL.md). Every new RTL block needs a cocotb specification, error-path tests and lint before board testing. Build and hardware procedures are in [docs/ARTY_A7_BRINGUP.md](docs/ARTY_A7_BRINGUP.md).

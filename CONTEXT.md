@@ -1,7 +1,9 @@
 # Context handoff
 
-Everything an agent needs to continue this project without the prior conversation.
-Written 2026-09-20. Companion files: [README.md](README.md) (what/how), [ROADMAP.md](ROADMAP.md) (schedule).
+Historical handoff notes, originally written 2026-09-20. For the current
+implementation boundary use [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md);
+for the current order of work use [ROADMAP.md](ROADMAP.md). Some dated notes
+below describe plans as they stood when written.
 
 Update 2026-09-22: [BNO085_PLAN.md](BNO085_PLAN.md) records verified SH-2
 formats, pinned STM32 configuration, rate caveats and future recovery/freshness
@@ -56,7 +58,8 @@ strobe, and hands the Pi a timestamped snapshot per cycle. Sensor fusion (an InE
 is intended to move onboard eventually, but explicitly **not** in the current goal;
 it stays on the STM32/Pi until the comms layer is solid.
 
-Hard deadline: **every sensor read by the FPGA on 2026-10-15.**
+Original integration target: **every sensor read by the FPGA on 2026-10-15.**
+The current implementation status is tracked separately in docs/PROJECT_STATUS.md.
 
 ### Hardware being absorbed
 
@@ -75,7 +78,7 @@ for the Oct 15 goal.
 
 - **Board: Arty A7-100T** (`xc7a100tcsg324-1`), pure FPGA, no hard CPU. Chosen over a
   Zynq to learn RTL, with room for two CAN FD cores plus a soft core or HLS block later.
-  **The board has not physically arrived yet** — everything so far is simulation only.
+  No physical-board test result is recorded in this repository.
 - **CAN FD: integrate the open-source CTU CAN FD core (VHDL)** rather than writing one.
   Needs GHDL for simulation; Vivado handles mixed-language synthesis. Do not suggest
   external CAN controller chips (e.g. MCP2518FD) — that was considered and rejected.
@@ -83,12 +86,12 @@ for the Oct 15 goal.
 - **Pi link is SPI with the FPGA as slave**, plus a data-ready line, using the new ZFP1 ten-actuator integer snapshot. The STM32 v8 layout is
   eight-actuator/float/estimator-output and is not wire compatible. Pi adaptation
   and estimator execution are required.
-- **No soft core for now.** The Pi configures peripherals at startup through the
-  register map; the FPGA does per-cycle work in pure hardware.
+- **No soft core for now.** The simulated BNO085 host sends its own startup
+  configuration. A general Pi-to-FPGA register/command path is not implemented.
 
 ## How work is done here
 
-**Test-first, and the human writes the RTL.** The user is a robotics engineer who is new
+**Test-first; the user has also explicitly requested complete RTL implementations.** The user is a robotics engineer who is new
 to Verilog and is deliberately learning it. The established loop is:
 
 1. Claude/agent writes the cocotb testbench in `sim/<interface>/test_<module>.py`. **The testbench is
@@ -119,8 +122,7 @@ constraints/  arty_a7_100.xdc (pin map)
 scripts/      build.tcl (synth→bitstream), program.tcl (JTAG flash)
 ```
 
-Remote: `https://github.com/vismay5559/fpga_zeus` (branch `main`). Push after each
-module passes. Commits are co-authored with Claude per the user's setup.
+Remote: `https://github.com/vismay5559/fpga_zeus` (branch `main`).
 
 ### Module status
 
@@ -210,7 +212,7 @@ Pi link implements 640-byte ZFP1 v1 snapshot framing/CRC, a read-only SPI mode0
 slave, partial-read rewind, single in-flight frame and counted dropped snapshots.
 cycle_timer provides 1 kHz sample + 64-bit microseconds. Pi decoder/reader live in
 pi/. Packet fields/offsets are in docs/PI_LINK_PROTOCOL.md. pi_link_demo_top sends
-invalid sensor records with TEST_MODE set; production sensor payload mapping,
+live foot contacts and invalid other sensor records with TEST_MODE set; production sensor payload mapping,
 Pi InEKF adapter and motor-command/gains/watchdog integration remain.
 
 Build default blinky: scripts/build.tcl -> build/top/top.bit. Demo: pass

@@ -1,6 +1,8 @@
-# can interface
+# CAN FD interface (planned)
 
-Put independently named synthesizable modules here and their cocotb tests in
-sim/can/. See ../../docs/TEAM_WORKFLOW.md before choosing shared pins or
-changing the snapshot format. This folder reserves ownership; it is not an
+No CAN RTL is present in this folder yet. The target is two buses serving ten
+ODrive S1 axes, with retained telemetry, error/age tracking and later motor TX.
+The proposed controller is CTU CAN FD; integration and testbench work remain.
+See [project status](../../docs/PROJECT_STATUS.md) and
+[team workflow](../../docs/TEAM_WORKFLOW.md). Folder ownership is not an
 implemented peripheral.
