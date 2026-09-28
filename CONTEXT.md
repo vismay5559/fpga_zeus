@@ -64,7 +64,7 @@ Hard deadline: **every sensor read by the FPGA on 2026-10-15.**
 |---|---|---|
 | CAN FD ×2 buses | 5 ODrive S1 each (10 axes) | 1 Mbit nominal / 5 Mbit data, ISO1042 transceivers |
 | SPI master ×4 | AS5047P encoders | after-spring position, hip + knee SEAs, both legs |
-| GPIO ×4 | foot switches | heel + toe per foot |
+| GPIO ×2 | foot switches | one center-sole switch per foot |
 | UART | BNO085 IMU | SHTP framing at 3 Mbaud |
 | SPI slave | Raspberry Pi | snapshot out / commands in, plus a data-ready GPIO |
 
@@ -220,12 +220,12 @@ commands. No physical programming has been performed by this task.
 
 ## 2026-09-28 foot-switch update
 
-`rtl/gpio/foot_switches.v` implements four active-low contacts with 2-flop input
+`rtl/gpio/foot_switches.v` implements two active-low center-sole contacts with 2-flop input
 synchronizers and 1 kHz-sampled independent 3-tick make / 8-tick break debounce.
-Those thresholds and bit order match `stm32_zeuss` contact.c at commit 8abfe78.
-Outputs: debounced switch/foot bits, per-switch confirmation timestamps, latest
+Those thresholds and bit order match current `stm32_zeuss` contact.c at commit df59973.
+Outputs: debounced switch/foot bits, per-foot confirmation timestamps, latest
 change timestamp, event pulses, and per-foot saturating stable age. Four focused
-cocotb tests pass. The Arty Pi demo now uses JD1-4 for switch-to-ground inputs
+cocotb tests pass. The Arty Pi demo now uses JD1-2 for switch-to-ground inputs
 with requested pull-ups, LED1/LED2 for left/right feet, and packs live contacts
 into bytes464..479 of the ZFP1 snapshot. Bit-level top/Pi decoder integration
 passes; see docs/FOOT_SWITCHES.md. Production top integration remains.

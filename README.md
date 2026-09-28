@@ -14,7 +14,7 @@ it on the same 1 kHz strobe, and hands the Pi one timestamped snapshot per cycle
 |---|---|---|
 | CAN FD ×2 | 10× ODrive S1 | 1 Mbit nominal / 5 Mbit data, ISO1042 transceivers, CTU CAN FD core |
 | SPI master ×4 | AS5047P encoders | after-spring position on both hip and knee SEAs |
-| GPIO ×4 | foot switches | heel + toe per foot, debounced in logic |
+| GPIO ×2 | foot switches | one center-sole switch per foot, debounced in logic |
 | UART | BNO085 IMU | SHTP framing at 3 Mbaud |
 | SPI slave | Raspberry Pi | state snapshot out, motor commands in, plus a data-ready line |
 
@@ -55,7 +55,7 @@ Run just this link: `make -C sim TOP=pi_link`; foot contacts:
 
 | Module | State | What it does |
 |---|---|---|
-| [`foot_switches`](rtl/gpio/foot_switches.v) | simulation-tested | four synchronized/debounced active-low contacts and timing metadata |
+| [`foot_switches`](rtl/gpio/foot_switches.v) | simulation-tested | two synchronized/debounced active-low center-sole contacts and timing metadata |
 | [`cycle_timer`](rtl/common/cycle_timer.v) | simulation-tested | microsecond timestamp and 1 kHz sample strobe |
 | [`pi_link`](rtl/pi_link/pi_link.v) | simulation-tested | atomic snapshot/CRC and read-only Pi SPI slave |
 | [`pi_link_demo_top`](rtl/top/pi_link_demo_top.v) | bench demo | Arty SPI top with live contacts and test-mode invalid IMU/CAN data |

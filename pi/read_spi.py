@@ -67,7 +67,7 @@ def main():
                           f'us={last.timestamp_us}, fpga_dropped={last.dropped}, '
                           f'gap={gaps}, bad={bad}, resets={resets}, '
                           f'test_mode={bool(last.flags & 0x80000000)}, '
-                          f'switches={last.contacts[0]:04b}, feet={last.contacts[1]:02b}, '
+                          f'switches={last.contacts[0]:02b}, feet={last.contacts[1]:02b}, '
                           f'contact_ticks={last.contacts[3:5]}', flush=True)
                     last_print = now
             elapsed = time.monotonic() - start

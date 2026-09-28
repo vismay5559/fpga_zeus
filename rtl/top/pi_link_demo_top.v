@@ -7,7 +7,7 @@ module pi_link_demo_top #(
 )(
     input wire CLK100MHZ,
     input wire [0:0] btn,
-    input wire [3:0] foot_sw_n,
+    input wire [1:0] foot_sw_n,
     output wire [2:0] led,
     input wire pi_sck, pi_cs_n,
     output wire pi_miso, pi_data_ready
@@ -22,11 +22,11 @@ module pi_link_demo_top #(
     wire sample;
     reg sample_for_link;
     wire [63:0] timestamp_us;
-    wire [3:0] switches, unused_switch_changed;
+    wire [1:0] switches, unused_switch_changed;
     wire [1:0] feet, unused_foot_changed;
     wire [15:0] left_ticks, right_ticks;
     wire [63:0] latest_change_us;
-    wire [255:0] unused_switch_change_us;
+    wire [127:0] unused_switch_change_us;
     wire [127:0] contact_record;
     reg [4847:0] payload;
     wire miso;
@@ -53,10 +53,10 @@ module pi_link_demo_top #(
         else sample_for_link <= sample;
     end
     // Relative packet byte 432 = absolute frame byte 464.
-    // Byte0 switches; byte1 feet; 2..3 zero; 4..7 foot ages; 8..15 time.
+    // Byte0 left/right switches; byte1 identical feet; 2..3 zero; 4..7 ages; 8..15 time.
     assign contact_record = {
         latest_change_us, right_ticks, left_ticks, 16'b0,
-        6'b0, feet, 4'b0, switches
+        6'b0, feet, 6'b0, switches
     };
     always @* begin
         payload = 4848'b0;

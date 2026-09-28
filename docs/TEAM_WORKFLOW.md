@@ -11,14 +11,14 @@ unique; use one feature branch per person, never develop together on main.
 | `rtl/pi_link`, `sim/pi_link` | Snapshot framing, CRC, Pi-facing SPI slave |
 | `rtl/spi`, `sim/spi` | Teammate-owned encoder SPI master and AS5047P readers |
 | `rtl/can`, `sim/can` | CAN FD integration and actuator records |
-| `rtl/gpio`, `sim/gpio` | Four implemented foot-switch inputs and tests |
+| `rtl/gpio`, `sim/gpio` | Two implemented center-sole foot-switch inputs and tests |
 | `rtl/top` | Board tops connecting tested modules |
 | `pi`, `tests` | Pi decoder/reader and host unit tests |
 | `constraints` | Reviewed board pin assignments and timing constraints |
 | `docs` | Shared protocol, ownership, and hardware procedures |
 
 The encoder SPI master and Pi SPI slave are DIFFERENT peripherals. The FPGA
-clocks the encoders; the Pi clocks the FPGA. The Pi demo allocates JA1-4 and four foot-switch inputs on JD1-4;
+clocks the encoders; the Pi clocks the FPGA. The Pi demo allocates JA1-4 and two foot-switch inputs on JD1-2;
 coordinate before putting encoder signals on that connector. Production pin
 allocation is a team integration decision, not inherited silently from the demo.
 The STM32 harness uses two two-device encoder daisy chains, not four individual

@@ -85,7 +85,7 @@ full robot cost.
 
 Use 3.3 V logic and a common ground, short wires, and the correct header orientation.
 Power the boards normally; do not connect a Pi 5 V rail to any FPGA signal pin.
-The demo reserves JA1-4 for the Pi and JD1-4 for switches; coordinate with the
+The demo reserves JA1-4 for the Pi and JD1-2 for switches; coordinate with the
 encoder teammate before sharing Pmods.
 
 | Signal | Arty Pmod physical position | FPGA package pin | Pi 40-pin header |
@@ -100,19 +100,17 @@ MOSI and hardware CE0 are not connected for this read-only phase. The supplied
 reader disables hardware CS and drives GPIO25 so setup/hold margins are explicit.
 JA physical pin numbers differ from FPGA package names; G13 is not a Pmod label.
 
-The four normally-open foot switches each connect a separate JD signal to a JD
+The two normally-open center-sole switches each connect a separate JD signal to a JD
 GND pin when pressed; the XDC requests internal pull-ups. No Pi GPIO wire is
 needed for the switch signals:
 
 | Switch | Arty signal | FPGA package pin | Debounced Pi packet bit |
 |---|---|---|---|
-| Left toe | JD1 | D4 | byte464 bit0 |
-| Left heel | JD2 | D3 | byte464 bit1 |
-| Right toe | JD3 | F4 | byte464 bit2 |
-| Right heel | JD4 | F3 | byte464 bit3 |
+| Left center sole | JD1 | D4 | byte464 bit0 |
+| Right center sole | JD2 | D3 | byte464 bit1 |
 
 Contact closes after three consecutive 1 kHz samples and opens after eight;
-byte465 bit0/bit1 are derived left/right foot contact. To bench-test, close one
+byte465 bit0/bit1 repeat the left/right switch state. To bench-test, close one
 switch and check LED1 or LED2 and the reader's `switches`/`feet` output, then
 release and observe the longer break delay.
 

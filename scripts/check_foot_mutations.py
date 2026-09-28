@@ -13,8 +13,8 @@ mutations = {
                                 'parameter integer MAKE_TICKS = 4'),
     'early_break': source.replace('parameter integer BREAK_TICKS = 8',
                                   'parameter integer BREAK_TICKS = 7'),
-    'bad_foot_or': source.replace('switches[1] | switches[0]',
-                                  'switches[1] & switches[0]'),
+    'wrong_foot_bit': source.replace('assign feet = switches;',
+                                      'assign feet = {switches[0], switches[1]};'),
 }
 if len(set(mutations.values())) != len(mutations):
     raise SystemExit('A mutation did not change the source')

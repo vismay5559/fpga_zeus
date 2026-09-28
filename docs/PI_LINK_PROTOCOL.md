@@ -1,7 +1,7 @@
 # ZFP1 sensor snapshot, version 1
 
 This is a new FPGA protocol, not STM32 NEXUS v8. Reviewed STM32 baseline:
-[8abfe78](https://github.com/vismay5559/stm32_zeuss/tree/8abfe78e04b1b5afa7f1539c65b607446f6d7993),
+[df59973](https://github.com/vismay5559/stm32_zeuss/tree/df5997328c2a5b9c37e39b1dd1c82d6919ba5887),
 434-byte v8 packet, eight leg joints, floats and STM32-computed estimator state.
 ZFP1 keeps ten actuators and integer IMU values; fusion and scaling run on the Pi.
 No placeholder estimated height, orientation, velocity, or foot height is labeled
@@ -119,10 +119,12 @@ Relative offsets: 0 uint16 raw14 count; 2 uint8 flags (valid bit0, new bit1);
 3 reserved zero; 4 uint32 age_us. Pi performs zero-offset/sign/wrap calibration
 into signed spring deflection radians. Do not substitute it for drive joint angle.
 
-Contacts: offset0 uint8 debounced switch bits (left toe/heel, right toe/heel);
-1 uint8 derived foot bits (left bit0, right bit1); 2 uint16 reserved;
+Contacts: offset0 uint8 debounced center-sole switch bits (left bit0, right bit1; bits2..7 zero);
+1 uint8 foot bits equal to switch bits (left bit0, right bit1; bits2..7 zero); 2 uint16 reserved;
 4 uint16[2] stable ticks left/right; 8 uint64 timestamp_us of most recent switch
 change. Header bit2 indicates whether the GPIO subsystem is present; health describes faults.
+When contacts are present, the Pi decoder rejects nonzero mask bits 2..7 and
+a foot mask that differs from the switch mask.
 The Arty Pi demo now populates this record from synchronized, debounced foot
 switches; its other sensor groups remain invalid/test-mode.
 

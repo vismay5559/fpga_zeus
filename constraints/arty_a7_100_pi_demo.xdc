@@ -6,12 +6,10 @@ set_property -dict {PACKAGE_PIN D9 IOSTANDARD LVCMOS33} [get_ports {btn[0]}]
 set_property -dict {PACKAGE_PIN H5 IOSTANDARD LVCMOS33} [get_ports {led[0]}]
 set_property -dict {PACKAGE_PIN J5 IOSTANDARD LVCMOS33} [get_ports {led[1]}]
 set_property -dict {PACKAGE_PIN T9 IOSTANDARD LVCMOS33} [get_ports {led[2]}]
-# JD1..JD4: left toe, left heel, right toe, right heel.
+# JD1/JD2: left/right center-sole switches.
 # Each normally-open switch connects its signal to ground when closed.
 set_property -dict {PACKAGE_PIN D4 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports {foot_sw_n[0]}]
 set_property -dict {PACKAGE_PIN D3 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports {foot_sw_n[1]}]
-set_property -dict {PACKAGE_PIN F4 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports {foot_sw_n[2]}]
-set_property -dict {PACKAGE_PIN F3 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports {foot_sw_n[3]}]
 set_property -dict {PACKAGE_PIN G13 IOSTANDARD LVCMOS33} [get_ports pi_sck]
 set_property -dict {PACKAGE_PIN B11 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports pi_cs_n]
 set_property -dict {PACKAGE_PIN A11 IOSTANDARD LVCMOS33} [get_ports pi_miso]

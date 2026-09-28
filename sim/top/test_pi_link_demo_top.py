@@ -33,14 +33,14 @@ async def spi_read(d):
 
 @cocotb.test()
 async def real_contact_bits_and_change_time_reach_pi(d):
-    d.CLK100MHZ.value=0; d.btn.value=0; d.foot_sw_n.value=15
+    d.CLK100MHZ.value=0; d.btn.value=0; d.foot_sw_n.value=3
     d.pi_sck.value=0; d.pi_cs_n.value=1
     cocotb.start_soon(Clock(d.CLK100MHZ,10,unit='ns').start())
     await ClockCycles(d.CLK100MHZ,50)
     await wait_ready(d)
-    # First packet already captured. Closing the left toe while it is held
+    # First packet already captured. Closing the left sole switch while it is held
     # must not alter its bytes. The switch will settle during this read.
-    d.foot_sw_n.value=14
+    d.foot_sw_n.value=2
     first=await spi_read(d)
     assert first.flags==0x80000004 and first.contacts[0:2]==(0,0)
     assert first.contacts[5]==0
@@ -52,6 +52,6 @@ async def real_contact_bits_and_change_time_reach_pi(d):
     assert second.contacts[5]>first.timestamp_us
     assert second.sequence>first.sequence
     # Eight subsequent 1k ticks of open contact finally release it.
-    d.foot_sw_n.value=15
+    d.foot_sw_n.value=3
     await ClockCycles(d.CLK100MHZ,8500)
     assert (int(d.led.value)&2)==0

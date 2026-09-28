@@ -27,6 +27,17 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(pkt.joints[9][0], 9.25)
         self.assertEqual((pkt.sequence, pkt.timestamp_us, pkt.dropped), (0xFFFFFFFF, 2**48, 4))
 
+    def test_two_center_sole_contact_mask(self):
+        data = bytearray(p.PAYLOAD_SIZE)
+        p.CONTACT.pack_into(data, 464 - p.HEADER.size, 3, 3, 0, 12, 7, 1234)
+        packet = p.decode(p.encode(data, flags=4))
+        self.assertEqual(packet.contacts[:2], (3, 3))
+        for switches, feet in ((4, 4), (1, 2)):
+            p.CONTACT.pack_into(data, 464 - p.HEADER.size,
+                                switches, feet, 0, 12, 7, 1234)
+            with self.assertRaises(ValueError):
+                p.decode(p.encode(data, flags=4))
+
     def test_corruption_truncation_and_wrong_version(self):
         frame = p.encode(bytes(p.PAYLOAD_SIZE))
         for index in (0, 4, 31, 100, 400, 638):

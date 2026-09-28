@@ -127,6 +127,8 @@ def decode(raw):
     contacts = CONTACT.unpack_from(raw, 464)
     if contacts[2]:
         raise ValueError("invalid contact padding")
+    if flags & 4 and (contacts[0] & ~3 or contacts[1] != contacts[0]):
+        raise ValueError("invalid two-switch contact mask")
     diagnostics = dict(zip(DIAGNOSTICS, struct.unpack_from("<33I", raw, 480)))
     return Snapshot(seq, stamp, dropped, flags, tuple(reports), joints,
                     encoders, contacts, diagnostics, raw)

@@ -1,105 +1,31 @@
-# Foot switches from the beginning
+# Foot switches: one at the center of each sole
 
-The robot has four normally-open switches: left toe, left heel, right toe,
-right heel. Each switch connects an FPGA input to ground when pressed. An input
-pull-up holds the otherwise open pin high. Thus the wire is **active-low**:
+The current [STM32 contact code](https://github.com/vismay5559/stm32_zeuss/blob/df5997328c2a5b9c37e39b1dd1c82d6919ba5887/Appli/App/contact.c) uses **two** switches total: one left and one right. Its old CubeMX pin names `L_TOE` and `R_TOE` now mean the center-sole switches; the heel pins are unused. The FPGA follows the same physical arrangement. Bit 0 always means left foot and bit 1 right foot. There is no toe/heel OR. The 16-byte ZFP1 contact record keeps its existing layout so the Pi frame length and decoder do not change; unused high bits of its two masks are zero.
 
-| Switch | Pin level | Meaning |
-|---|---|---|
-| Open | 1 | no physical contact |
-| Closed | 0 | physical contact candidate |
+Each normally-open switch connects one FPGA input to ground when pressed. The XDC requests an internal pull-up, so an open switch reads `1` and a pressed switch reads `0` (active-low). JD1 is left (package D4); JD2 is right (D3). Each switch's other wire goes to JD ground. JA1..JA4 remain reserved for the Pi SPI demo. LED1 shows left contact; LED2 right contact.
 
-The current STM32 uses this same polarity and order. Its `contact.c` at commit
-[8abfe78](https://github.com/vismay5559/stm32_zeuss/blob/8abfe78e04b1b5afa7f1539c65b607446f6d7993/Appli/App/contact.c)
-confirms closed for 3 consecutive 1 kHz polls and open for 8. Defaults can be
-changed through the RTL parameters MAKE_TICKS and BREAK_TICKS; a longer break
-avoids false lift-off from a foot rolling on a planted contact.
+## Why wait for three and eight samples?
 
-## What the Verilog does
+A metal contact can open and close several times as it hits or releases. The foot can also rock, momentarily taking pressure off a switch even while planted. At 1 kHz, the FPGA looks once every millisecond. It accepts **pressed** after three consecutive pressed readings and **released** after eight consecutive open readings. If a sample returns to the previously accepted state, the candidate count resets. Thus `pressed, pressed, open, pressed, pressed, pressed` becomes one contact event only at the final pressed reading. An open spell of seven samples while planted does not announce lift-off. These defaults are the same as the STM32 code; they are configurable RTL parameters, not measured optimum values for the final shoe.
 
-[`foot_switches.v`](../rtl/gpio/foot_switches.v) has four stages:
+This is **digital debounce**, not a capacitor. A capacitor plus resistor can smooth fast voltage changes electrically, but capacitance by itself neither guarantees clean edges nor proves that a foot is loaded. The FPGA input still needs a definite voltage and the mechanical gait still needs testing. The two synchronizer flip-flops reduce the chance of an asynchronous transition upsetting FPGA logic; they do not debounce. The 3/8-sample filter is what rejects short changes after synchronization. It delays a true landing by roughly 2–3 ms and a true release by roughly 7–8 ms, depending on where the edge falls relative to the next sample. A long, real opening of the center switch during foot roll can still be interpreted as lift-off; with one switch this must be checked on the robot.
 
-1. `sync_first` and `sync_second` take each asynchronous pin through two FPGA
-   flip-flops. This reduces metastability reaching the logic. Reset assumes the
-   pull-up state (all ones); no contact is initially trusted.
-2. At each one-clock `sample` pulse (every 1 ms in hardware), `closed` inverts the
-   synchronized electrical level, turning pressed=0 into logical contact=1.
-3. `candidate_ticks[i]` independently counts consecutive sampled values that
-   differ from the accepted `switches[i]`. A matching sample clears the count.
-   The third closed sample commits contact; the eighth open sample commits lift.
-4. `feet[0]` is left toe OR left heel; `feet[1]` is right toe OR right heel.
-   `left_ticks` and `right_ticks` count 1 kHz polls since each FOOT changed,
-   saturating at 65535. A toe-to-heel transfer on the same foot keeps age.
+## Verilog, step by step
 
-For example, if left toe closes and bounces like `0,0,1,0,0,0` in the logical
-sampled signal, the first two candidates are canceled by the third sample. The
-contact is finally accepted after the last three consecutive ones. A short raw
-pulse between sample strobes never reaches the contact decision.
+[`foot_switches.v`](../rtl/gpio/foot_switches.v) has two synchronizer registers per input. At every 1 kHz `sample` pulse it inverts the electrical value (`0` means pressed) and compares it with the accepted state. `candidate_ticks[0]` and `[1]` independently count consecutive opposite samples. The selected `MAKE_TICKS` or `BREAK_TICKS` determines when a candidate becomes accepted. A change produces one clock pulse in `switch_changed`; `feet` and `foot_changed` equal those switch masks because there is one switch per foot. The 64-bit per-foot confirmation timestamps and latest confirmation timestamp record **when the filter accepted** a change, not the first physical touch. `left_ticks` and `right_ticks` count 1 kHz samples since their own accepted state last changed and stop at 65535 rather than wrapping.
 
-When a switch is accepted, `switch_changed[i]` pulses for exactly one 100 MHz
-clock. Its own 64-bit `switch_change_us` slot and the global `latest_change_us`
-record the **time of confirmation**. They are not the time of the first metal
-contact, which can only be known within the sample/debounce resolution. A foot
-OR transition also emits a one-clock `foot_changed` pulse. Reset clears all
-accepted states, age counters and timestamps. No source value is invented for
-an unobserved input after reset.
+The demo [`pi_link_demo_top.v`](../rtl/top/pi_link_demo_top.v) takes the accepted state one FPGA clock after the 1 kHz sample, ensuring the snapshot sees the just-confirmed value. It fills ZFP1 bytes 464..479: byte464 has left/right switch bits in positions 0/1, byte465 has identical foot bits, bytes468..471 contain 16-bit left/right ages, and bytes472..479 contain the latest confirmation time in microseconds. Header flag bit2 marks contacts present. [`read_spi.py`](../pi/read_spi.py) prints the two masks and ages. Other sensor groups in this bench demo remain invalid.
 
-Useful Verilog syntax here:
+## Python tests and bench work
 
-- `always @(posedge clk)` means the logic updates only at each rising FPGA
-  clock edge; `<=` schedules registers to change together after that edge.
-- `wire` continuously calculates a value, like `feet = toe | heel`.
-- `candidate_ticks[i]` is a separate small counter for each of four switches.
-- `switch_change_us[i*64 +: 64]` selects one 64-bit timestamp slot from the
-  packed bus. Slot0 occupies bits0..63, slot1 bits64..127, and so on.
-- `parameter` makes the make/break thresholds reusable without editing logic.
-
-The top-level clock timer provides both the 1 kHz `sample` and free-running
-microseconds. The GPIO block samples its physical pins only at `sample`, but its
-two synchronizer stages run at every 100 MHz clock edge.
-
-## What Python verifies
-
-[`test_foot_switches.py`](../sim/gpio/test_foot_switches.py) drives raw pin
-levels and clock/sample pulses. It checks each bit position, exactly 3 make and
-8 break samples, candidate cancellation after bounce, simultaneous contacts,
-toe-to-heel transfer, timestamps, reset and age saturation. The benchmark test
-uses shortened gaps between sample pulses for runtime; the separate timer test
-checks the actual 100 MHz/1 kHz strobe spacing.
-
-[`test_pi_link_demo_top.py`](../sim/top/test_pi_link_demo_top.py) sends SPI clock
-edges to the top-level module. It checks packet CRC with the Pi decoder, then
-checks that a pressed left-toe switch appears in the next complete snapshot
-without changing a packet already in flight. The GPIO bit remains live even
-when Pi reads slower and intervening snapshots are counted as dropped.
-
-Run both:
+[`test_foot_switches.py`](../sim/gpio/test_foot_switches.py) supplies virtual input voltages, waits for synchronization, and sends virtual 1 kHz sample pulses. It checks left/right order, exact 3/8-sample boundaries, bounce cancellation, independent feet, event pulses and timestamps, reset, a pulse between samples, and age saturation. [`test_pi_link_demo_top.py`](../sim/top/test_pi_link_demo_top.py) clocks the complete SPI packet and runs it through the Pi decoder to check that contact bits arrive without changing a packet already in flight. The testbench shortens timer waits for simulation speed; the separate timer tests cover the hardware 100 MHz to 1 kHz ratio.
 
 ```bash
 source ~/fpga/venv/bin/activate
 make -C sim TOP=foot_switches
 make -C sim TOP=pi_link_demo_top
+python scripts/check_foot_mutations.py
+python scripts/run_tests.py
 ```
 
-The demo maps stable GPIO state into ZFP1 bytes 464..479. The Pi sees switch bits
-at byte464 (bit0 left toe, bit1 left heel, bit2 right toe, bit3 right heel),
-foot bits at byte465 (bit0 left, bit1 right), 16-bit foot ages at bytes468..471,
-and `latest_change_us` at bytes472..479. Header flag bit2 says contacts are
-present. The first 1 kHz snapshot following a confirmed transition contains the
-new state. `pi.read_spi` displays the switch mask, foot mask and ages.
-
-## Arty bench wiring
-
-The Pi SPI demo continues on JA1..JA4. Four contact inputs use JD1..JD4 in the
-same left-to-right order as above (package pins D4, D3, F4, F3). Each external
-normally-open switch connects its corresponding JD signal to JD ground; the XDC
-requests an FPGA pull-up. LED1 means left foot contact and LED2 right foot
-contact. LED0 still indicates a complete packet waiting for the Pi.
-
-A long robot cable can pick up noise; test with actual harness length and motor
-switching. For production use, review pull-up strength, wire shielding, signal
-conditioning and electrical protection at the FPGA input. The timing tests and
-FPGA simulation do not establish those analog properties.
-
-This is a complete foot-switch receive/packet path in the demo. The production
-robot top, health/fault policy and Pi-side estimator still need integration.
+The pinout and programming sequence are in [ARTY_A7_BRINGUP.md](ARTY_A7_BRINGUP.md). Connect and test the real switch harness before treating its debounce thresholds as final: press and release each switch, rock a planted foot, and test with motors running. An FPGA simulation cannot measure electrical noise, contact force, or whether the sole's center point reliably engages at all gait phases. The bitstream build alone is not a physical board test.

@@ -39,14 +39,37 @@ The demo now includes live foot switches; its 2026-09-27 utilization figures abo
 apply only to the earlier all-invalid snapshot. The complete regression passed:
 78 cocotb tests and 4 Pi protocol unit tests. This includes four focused GPIO
 tests and one board-top switch-to-SPI-to-Pi decoder test. A scratch reference
-passed; changing the make threshold, break threshold, or toe/heel OR separately
-made the GPIO tests fail. Scratch RTL was deleted after each run.
+passed; changing the make threshold, break threshold, or left/right foot
+bit order separately made the GPIO tests fail. Scratch RTL was deleted after each run.
 
 Vivado 2026.1 routed the updated `pi_link_demo_top` for xc7a100tcsg324-1 at
 100 MHz: setup WNS +3.097 ns, hold WHS +0.053 ns, zero failing endpoints, zero
 DRC violations. The routed demo uses 292 LUTs and 586 flip-flops. Its switch
-inputs D4/D3/F4/F3 have `PULLUP` in the IO report. The bitstream is at
+inputs D4/D3 have `PULLUP` in the IO report. The bitstream is at
 `build/pi_link_demo_top/pi_link_demo_top.bit`. These are demo resources with
 IMU/encoder/CAN data still constant; no switch hardware was exercised here.
 
 Reproduce the new fault check with `python scripts/check_foot_mutations.py`.
+
+## 2026-09-28 center-sole correction
+
+The newer STM32 `main` at commit `df59973` uses one center-sole switch per
+foot. The GPIO block, Pi demo, Arty XDC, and protocol docs were corrected from
+the preceding four-switch revision. The ZFP1 record still occupies 16 bytes;
+its switch and foot masks now contain identical left/right bits 0/1, with high
+bits zero. The Pi decoder rejects a contacts-present packet with old high bits
+or disagreeing masks.
+
+The complete regression passed again: 78 cocotb tests and 5 Pi protocol tests.
+All four GPIO tests and the bit-level board-top/Pi-decoder test passed. Scratch
+mutations of the make threshold, break threshold, and left/right bit order were
+each detected. Verilator `-Wall` passed for the changed top hierarchy.
+
+Vivado 2026.1 routed the corrected A7-100T demo at 100 MHz with setup WNS
++2.255 ns, hold WHS +0.046 ns, zero failing endpoints, and zero DRC violations.
+Utilization is 252 LUTs and 568 flip-flops. The routed IO report assigns D4
+(left) and D3 (right) as LVCMOS33 inputs with pull-ups; no third or fourth switch
+input is assigned. Bitstream generation completed at
+`build/pi_link_demo_top/pi_link_demo_top.bit`. This was not flashed to a board;
+electrical switch behavior and gait-dependent contact reliability remain bench
+tests.
