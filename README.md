@@ -4,6 +4,7 @@ FPGA hardware-interface project for a bipedal robot, targeting a Digilent Arty A
 
 **Current boundary:** UART/BNO085 modules, the 1 kHz timer, two foot-switch inputs and a read-only Pi SPI link have simulation coverage. The **Arty bench demo** joins the timer, switches and Pi link: it sends live BNO085 IMU and foot-contact data, while encoder/CAN data remain invalid. It is not a complete robot top. No physical-board results are recorded. The Pi-to-FPGA motor-command path and contact-triggered torque override have not been implemented.
 
+- [Agent handoff: read this first](AGENT_HANDOFF.md) — current design, decisions, limits, and next steps.
 - [What works, what is missing, and the next steps](docs/PROJECT_STATUS.md) — current status source of truth.
 - [How the implemented system works, from basics](docs/SYSTEM_WALKTHROUGH.md) — modules, tests and data flow.
 - [Prioritized work plan](ROADMAP.md) and [project handoff/history](CONTEXT.md).

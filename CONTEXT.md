@@ -1,6 +1,7 @@
 # Context handoff
 
-Historical handoff notes, originally written 2026-09-20. For the current
+Historical handoff notes, originally written 2026-09-20. For a new agent,
+start with [AGENT_HANDOFF.md](AGENT_HANDOFF.md). For the current
 implementation boundary use [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md);
 for the current order of work use [ROADMAP.md](ROADMAP.md). Some dated notes
 below describe plans as they stood when written.
