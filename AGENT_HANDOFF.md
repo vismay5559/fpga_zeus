@@ -1,6 +1,6 @@
 # Agent handoff: fpga_zeus
 
-**Last reviewed:** 2026-09-29. **Repository:** `vismay5559/fpga_zeus`, local checkout
+**Last reviewed:** 2026-10-25. **Repository:** `vismay5559/fpga_zeus`, local checkout
 `~/fpga/biped-fpga`, target branch `main`. This file is the entry point for a
 new agent. It describes the repository as it stood after commit `0bf197b`;
 check `git status`, the latest commit, and the linked source files before treating
@@ -15,7 +15,8 @@ The user is building a biped robot and learning Verilog. The current robot uses
 [STM32 firmware](https://github.com/vismay5559/stm32_zeuss) for the BNO085, spring
 encoders, foot switches, CAN/ODrives, a 1 kHz control loop, sensor fusion, and a
 USB link to a Raspberry Pi. This repository explores moving the hardware-interface
-layer to a Digilent **Arty A7-100T** (`xc7a100tcsg324-1`, 100 MHz). The Pi remains
+layer to a Digilent **Zybo Z7-20** (Zynq-7020, `xc7z020clg400-1`). The earlier
+Arty A7-100T (`xc7a100tcsg324-1`) remains as a legacy target. The Pi remains
 the high-level compute host. The FPGA is intended to acquire time-aligned sensor
 state and eventually support ten ODrive axes across two CAN buses.
 
@@ -103,7 +104,11 @@ packets/s reaching Linux has not been measured. The Pi decodes with
 [`pi/fpga_protocol.py`](pi/fpga_protocol.py) and can bench-read with
 [`pi/read_spi.py`](pi/read_spi.py). No Pi-to-FPGA command channel exists.
 
-The current top-level pin assignment is Arty JA1-4 for Pi SCK/CS/MISO/ready,
+The new Zybo demo uses JE1/2 for IMU, JE3/4/7/8 for Pi SPI and ready,
+and JD1/2 for the two contacts. It generates 100 MHz from the Zybo 125 MHz
+PL clock. See [ZYBO_Z7_20_BRINGUP.md](docs/ZYBO_Z7_20_BRINGUP.md). This Zybo
+port has no routed timing or physical-board result yet. The legacy Arty
+top-level pin assignment is JA1-4 for Pi SCK/CS/MISO/ready,
 JD1/JD2 for left/right switches, and JB1/JB2 for sensor TX-to-`imu_rx` and
 `imu_tx`-to-sensor RX. Use the exact table, grounding, and voltage checks in
 [ARTY_A7_BRINGUP.md](docs/ARTY_A7_BRINGUP.md); the pins are not a production
@@ -149,7 +154,7 @@ cd ~/fpga/biped-fpga
 source ~/fpga/venv/bin/activate
 python scripts/run_tests.py
 make -C sim TOP=pi_link_demo_top
-vivado -mode batch -source scripts/build.tcl -tclargs pi_link_demo_top constraints/arty_a7_100_pi_demo.xdc
+vivado -mode batch -source scripts/build.tcl -tclargs zybo_z7_20_demo_top
 ```
 
 The complete regression runs cocotb suites sequentially because they share

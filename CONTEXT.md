@@ -1,5 +1,15 @@
 # Context handoff
 
+**Current board update (2026-10-25):** the user bought a Digilent Zybo Z7-20,
+which has a Zynq-7020 (`xc7z020clg400-1`), plus an Adafruit BNO085 breakout.
+Zybo is now the default build target. The 125 MHz PL clock is divided by an
+MMCM to 100 MHz for the existing tested UART/timer design. See
+[ZYBO_Z7_20_BRINGUP.md](docs/ZYBO_Z7_20_BRINGUP.md) for new pins, power,
+programming and IMU wiring. Arty remains a legacy target. The previous
+Vivado license did not permit a Zybo route at the time of this update; the
+board bitstream and real-sensor behavior remain unverified. Dated Arty decisions
+below are historical, not the current board choice.
+
 Historical handoff notes, originally written 2026-09-20. For a new agent,
 start with [AGENT_HANDOFF.md](AGENT_HANDOFF.md). For the current
 implementation boundary use [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md);
@@ -77,7 +87,7 @@ for the Oct 15 goal.
 
 ### Decisions already made (do not relitigate)
 
-- **Board: Arty A7-100T** (`xc7a100tcsg324-1`), pure FPGA, no hard CPU. Chosen over a
+- **Historical board: Arty A7-100T** (`xc7a100tcsg324-1`), pure FPGA, no hard CPU. Chosen over a
   Zynq to learn RTL, with room for two CAN FD cores plus a soft core or HLS block later.
   No physical-board test result is recorded in this repository.
 - **CAN FD: integrate the open-source CTU CAN FD core (VHDL)** rather than writing one.
